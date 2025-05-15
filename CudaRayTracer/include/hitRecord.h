@@ -1,6 +1,8 @@
 #ifndef HITRECORD_H
 #define HITRECORD_H
-
+#ifdef __cplusplus
+#  define restrict __restrict__
+#endif
 #include <stdbool.h>
 
 #include "hypatiaINC.h"
@@ -34,14 +36,14 @@ typedef struct {
 } HitRecord;
 
 // construct a hit record object and return it
-extern HitRecord hr_setRecord(
+__device__ extern HitRecord hr_setRecord(
             CFLOAT distanceFromOrigin, 
             vec3 point, 
             vec3 normal, 
             vec3 direction, 
             const Material * restrict hitObjMat
         );
-extern void hr_setRecordi(
+__device__ extern void hr_setRecordi(
             CFLOAT distanceFromOrigin, 
             vec3 point, 
             vec3 normal, 

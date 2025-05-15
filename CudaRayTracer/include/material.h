@@ -35,8 +35,7 @@ typedef struct material {
     MaterialType matType;
 } Material;
 
-__device__ __host__
-bool mat_scatter (
+__device__ bool mat_scatter (
         const Ray * restrict rayIn, 
         const HitRecord * restrict rec, 
         RGBColorF * restrict attenuation, 

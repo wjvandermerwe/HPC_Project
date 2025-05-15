@@ -1,12 +1,16 @@
 #ifndef CAMERA_H
 #define CAMERA_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include<stdbool.h>
 
 #include "hypatiaINC.h"
 #include "types.h"
 #include "ray.h"
-
+#ifdef __cplusplus
+#  define restrict __restrict__
+#endif
 typedef struct camera {
     vec3 origin;
     vec3 lowerLeftCorner;
@@ -26,17 +30,28 @@ typedef struct camera {
     CFLOAT verticalFOV;
 } Camera;
 
-extern void cam_setCamera(Camera * restrict c, vec3 origin, CFLOAT aspectRatio, 
+extern void cam_setCamera(Camera * restrict c, vec3 origin, CFLOAT aspectRatio,
                           CFLOAT focalLength, CFLOAT vfov);
 
-extern void cam_setLookAtCamera(Camera * restrict c, vec3 lookFrom, 
-                                vec3 lookAt, vec3 up, CFLOAT vfov, 
+
+
+#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+    void cam_setLookAtCamera(Camera * restrict c, vec3 lookFrom,
+                                vec3 lookAt, vec3 up, CFLOAT vfov,
                                 CFLOAT aspectRatio, CFLOAT aperture,
                                 CFLOAT focusDist);
+#ifdef __cplusplus
+}
+#endif
 
-__device__ __host__
-extern Ray cam_getRay(const Camera * restrict cam, CFLOAT u, CFLOAT v);
+__device__ extern Ray cam_getRay(const Camera * restrict cam, CFLOAT u, CFLOAT v);
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif
 

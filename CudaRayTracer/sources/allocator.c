@@ -157,19 +157,6 @@ LinearAllocFC * alloc_createLinearAllocFC(size_t numChunks,
     return outLAFC;
 }
 
-__device__ __host__
-void * alloc_linearAllocFCAllocate(LinearAllocFC * lafc){
-    if((lafc->curOffset + lafc->chunkSize) > lafc->totalSize){
-        assert(0 && "Linear allocator is full");
-        return NULL;
-    }
-
-    void * outAddr = lafc->bufptr + lafc->curOffset;
-    lafc->curOffset += lafc->chunkSize;
-    
-    return memset(outAddr, 0, lafc->chunkSize);
-}
-
 void alloc_linearAllocFCFreeAll(LinearAllocFC * restrict lafc){
     lafc->curOffset = 0;
 }

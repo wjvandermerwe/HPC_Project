@@ -26,9 +26,9 @@ typedef struct {
 } Sphere;
 
 
-extern bool obj_sphereHit(const Sphere* restrict s, Ray r, CFLOAT t_min, CFLOAT t_max, HitRecord * outRecord);
+__device__ extern bool obj_sphereHit(const Sphere* restrict s, Ray r, CFLOAT t_min, CFLOAT t_max, HitRecord * outRecord);
 extern bool obj_sphereCalcBoundingBox(const Sphere* restrict s, AABB * outbox);
-extern void obj_sphereTexCoords(vec3 pointOnSphere, CFLOAT * outU, CFLOAT * outV);
+__device__ extern void obj_sphereTexCoords(vec3 pointOnSphere, CFLOAT * outU, CFLOAT * outV);
 
 // enum contaning different types of objects
 typedef enum {
@@ -110,8 +110,7 @@ extern void obj_objectLLSort(const ObjectLL * restrict objll,
 
 // returns a hit record if any object in the list is intersected by the given ray
 // under the given conditions
-__device__ __host__
-extern /*HitRecord**/bool obj_objLLHit (const ObjectLL* restrict objll, 
+__device__ extern /*HitRecord**/bool obj_objLLHit (const ObjectLL* restrict objll,
                           Ray r, 
                           CFLOAT t_min, 
                           CFLOAT t_max,

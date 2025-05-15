@@ -38,15 +38,15 @@ typedef struct {
     int32_t compsPerPixel;
 } Image;
 
-extern RGBColorF tex_value(const Texture * restrict t, 
+__device__ extern RGBColorF tex_value(const Texture * restrict t,
         CFLOAT u, CFLOAT v, vec3 p);
 
-extern RGBColorF tex_solidColorValue(const SolidColor * restrict t);
-extern RGBColorF tex_checkerValue(const Checker * restrict c,
+__device__ extern RGBColorF tex_solidColorValue(const SolidColor * restrict t);
+__device__ extern RGBColorF tex_checkerValue(const Checker * restrict c,
                 CFLOAT u, CFLOAT v, vec3 p);
 
 extern void tex_loadImage(Image * restrict img, const char* filename);
-extern RGBColorF tex_imageValue(const Image * restrict img, 
+__device__ extern RGBColorF tex_imageValue(const Image * restrict img,
                 CFLOAT u, CFLOAT v);
 
 #endif

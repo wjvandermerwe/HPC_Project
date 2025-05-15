@@ -12,12 +12,13 @@
 #  define restrict __restrict__
 #endif
 #include "allocator.h"
-#include "texture.h"
+// #include "texture.h"
 #include "helpers.h"
 #include "outfile.h"
+#include "hitRecord.h"
+#include "camera.h"
 #include "types.h"      // CFLOAT, vec3, RGBColorF, RGBColorU8, …
 #include "ray.h"        // Ray struct + cam_getRay
-#include "camera.h"     // cam_setLookAtCamera
 #include "sphere.h"   // ObjectLL + obj_objLLHit
 #include "material.h"   // mat_scatter
 #include "util.h"       // writeToPPM, COLOR_U8CREATE, etc.
@@ -47,6 +48,7 @@ __device__ RGBColorF ray_c_device(Ray r, const ObjectLL* world, int depth,
     vector3_setf3(&b,0.5f*t,0.7f*t,1.f*t); vector3_add(&b,&a);
     return makeColorF(b.x,b.y,b.z);
 }
+
 
 // Kernel: each thread shades one pixel, accumulates SPP samples
 __global__ void render_kernel(RGBColorU8* fb, int W, int H, int spp, int maxD,

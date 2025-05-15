@@ -1,6 +1,8 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -171,7 +173,6 @@ extern DynamicStackAlloc * alloc_createDynamicStackAllocD(
         size_t maxAllocatorSize,
         size_t maxAllocators);
 
-
 extern void alloc_createDynamicStackAlloc(
         DynamicStackAlloc * restrict dsa, 
         size_t maxAllocatorSize,
@@ -186,6 +187,8 @@ extern bool alloc_dynamicStackAllocFree(DynamicStackAlloc * restrict dsa, void *
 extern bool alloc_dynamicStackAllocFreeAll(DynamicStackAlloc * restrict dsa);
 extern void alloc_freeDynamicStackAlloc(DynamicStackAlloc * restrict dsa);
 extern void alloc_freeDynamicStackAllocD(DynamicStackAlloc * restrict dsa);
-
+#ifdef __cplusplus
+}
+#endif
 #endif
 

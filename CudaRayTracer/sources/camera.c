@@ -107,5 +107,3 @@ Ray cam_getRay(const Camera * restrict cam, CFLOAT u, CFLOAT v){
     vector3_subtract(&outDirection, &cam->origin);
     vector3_subtract(&outDirection, &offset);
 
-    return ray_create(outOrigin, outDirection);
-}

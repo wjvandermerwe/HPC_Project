@@ -29,14 +29,7 @@ RGBColorF colorf_add(RGBColorF x, RGBColorF y){
         .b = util_floatClamp(x.b + y.b, 0, 1.0)
     };
 }
-__device__ __host__
-RGBColorF colorf_multiply(RGBColorF x, RGBColorF y){
-    return (RGBColorF) {
-        .r = x.r * y.r,
-        .g = x.g * y.g,
-        .b = x.b * y.b
-    };
-}
+
 
 
 RGBColorF convertU8toF(RGBColorU8 in){

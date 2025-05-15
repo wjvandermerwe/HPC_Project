@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
-#ifdef __CUDACC__
+// #ifdef __CUDACC__
 // #ifndef _INC_HYPATIA
+#ifndef _INC_HYPATIA
 #define _INC_HYPATIA
 
 #define HYPATIA_VERSION "2.0.0"
@@ -101,23 +102,7 @@
 #	define HYP_MEMSET(a, b, c)  memset(a, b, c)
 #endif
 
-/** @brief A function that returns the minimum of \a a and \a b */
-static HYP_INLINE HYP_FLOAT HYP_MIN(HYP_FLOAT a, HYP_FLOAT b)
-{
-	return (a < b) ? a : b;
-}
 
-/** @brief A macro that returns the maximum of \a a and \a b */
-static HYP_INLINE HYP_FLOAT HYP_MAX(HYP_FLOAT a, HYP_FLOAT b)
-{
-	return (a > b) ? b : a;
-}
-
-/** @brief A macro that swaps \a a and \a b */
-static HYP_INLINE void HYP_SWAP(HYP_FLOAT *a, HYP_FLOAT *b)
-{
-	HYP_FLOAT f = *a; *a = *b; *b = f;
-}
 
 /** @brief A macro that returns a random float point number up to RAND_MAX */
 #ifndef HYP_RANDOM_FLOAT
@@ -253,7 +238,6 @@ HYPAPI const struct vector4 *vector4_get_reference_vector4(int id);
 /** @brief {1,1} */
 #define HYP_VECTOR2_ONE vector2_get_reference_vector2(HYP_REF_VECTOR2_ONE)
 /* @} */
-
 
 HYPAPI short scalar_equalsf(const HYP_FLOAT f1, const HYP_FLOAT f2);
 HYPAPI short scalar_equals_epsilonf(const HYP_FLOAT f1, const HYP_FLOAT f2, const HYP_FLOAT epsilon);
@@ -733,27 +717,7 @@ HYPAPI uint8_t matrix4_transformation_decompose_EXP(struct matrix4 *self, struct
 #ifdef HYPATIA_IMPLEMENTATION
 
 
-/**
- * @brief This checks for mathematical equality within HYP_EPSILON.
- *
- */
-HYPAPI short scalar_equalsf(const HYP_FLOAT f1, const HYP_FLOAT f2)
-{
-	return scalar_equals_epsilonf(f1, f2, HYP_EPSILON);
-}
 
-/**
- * @brief This checks for mathematical equality within a custom epsilon.
- *
- */
-HYPAPI short scalar_equals_epsilonf(const HYP_FLOAT f1, const HYP_FLOAT f2, const HYP_FLOAT epsilon)
-{
-	if ((HYP_ABS(f1 - f2) < epsilon) == 0) {
-		return 0;
-	}
-
-	return 1;
-}
 
 
 static struct vector2 _vector2_zero = { { {0.0f, 0.0f} } };
@@ -1020,19 +984,6 @@ HYPAPI const struct vector3 *vector3_get_reference_vector3(int id)
 
 /**
  * @ingroup vector3
- * @brief initializes the vertex with specific values
- */
-HYPAPI struct vector3 *vector3_setf3(struct vector3 *self, HYP_FLOAT xT, HYP_FLOAT yT, HYP_FLOAT zT)
-{
-	self->x = xT;
-	self->y = yT;
-	self->z = zT;
-	return self;
-}
-
-
-/**
- * @ingroup vector3
  * @brief initializes the vertex with values from another vector
  */
 HYPAPI struct vector3 *vector3_set(struct vector3 *self, const struct vector3 *vT)
@@ -1066,69 +1017,14 @@ HYPAPI int vector3_equals(const struct vector3 *self, const struct vector3 *vT)
 }
 
 
-/**
- * @ingroup vector3
- * @brief switches the sign on each component of the vector
- */
-HYPAPI struct vector3 *vector3_negate(struct vector3 *self)
-{
-	self->v[0] = -self->v[0];
-	self->v[1] = -self->v[1];
-	self->v[2] = -self->v[2];
-	return self;
-}
 
 
-/**
- * @ingroup vector3
- * @brief adds vectors using component-wise addition
- */
-HYPAPI struct vector3 *vector3_add(struct vector3 *self, const struct vector3 *vT)
-{
-	self->v[0] += vT->v[0];
-	self->v[1] += vT->v[1];
-	self->v[2] += vT->v[2];
-	return self;
-}
 
 
-/**
- * @ingroup vector3
- * @brief add to each component of the vector using a scalar
- */
-HYPAPI struct vector3 *vector3_addf(struct vector3 *self, HYP_FLOAT f)
-{
-	self->v[0] += f;
-	self->v[1] += f;
-	self->v[2] += f;
-	return self;
-}
 
 
-/**
- * @ingroup vector3
- * @brief subtract two vectors using component-wise subtraction
- */
-HYPAPI struct vector3 *vector3_subtract(struct vector3 *self, const struct vector3 *vT)
-{
-	self->v[0] -= vT->v[0];
-	self->v[1] -= vT->v[1];
-	self->v[2] -= vT->v[2];
-	return self;
-}
 
 
-/**
- * @ingroup vector3
- * @brief subtract each vector's component by a scalar
- */
-HYPAPI struct vector3 *vector3_subtractf(struct vector3 *self, HYP_FLOAT f)
-{
-	self->v[0] -= f;
-	self->v[1] -= f;
-	self->v[2] -= f;
-	return self;
-}
 
 
 /**
@@ -1171,49 +1067,9 @@ HYPAPI struct vector3 *vector3_divide(struct vector3 *self, const struct vector3
 }
 
 
-/**
- * @ingroup vector3
- * @brief calculates the magnitude of the vector
- */
-HYPAPI HYP_FLOAT vector3_magnitude(const struct vector3 *self)
-{
-	return HYP_SQRT((self->x * self->x) + (self->y * self->y) + (self->z * self->z));
-}
 
 
-/**
- * @ingroup vector3
- * @brief normalizes the vector by dividing each component by the magnitude
- */
-HYPAPI struct vector3 *vector3_normalize(struct vector3 *self)
-{
-	HYP_FLOAT mag;
 
-	mag = vector3_magnitude(self);
-
-	if (scalar_equalsf(mag, 0.0f)) {
-		/* can't normalize a zero
-		 * avoid divide by zero
-		 */
-		return self;
-	}
-
-	self->x = self->x / mag;
-	self->y = self->y / mag;
-	self->z = self->z / mag;
-
-	return self;
-}
-
-
-/**
- * @ingroup vector3
- * @brief computes the dot product of two vectors
- */
-HYPAPI HYP_FLOAT vector3_dot_product(const struct vector3 *self, const struct vector3 *vT)
-{
-	return (self->x * vT->x) + (self->y * vT->y) + (self->z * vT->z);
-}
 
 
 /**
