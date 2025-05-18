@@ -20,29 +20,22 @@ inline void mpi_finalize() {
     MPI_Finalize();
 }
 
-// Broadcast the centroids array (length K*D) from `root` to all ranks.
-void broadcast_centroids(const double* centroids, int K, int D, int root);
+void broadcast_centroids(double* centroids, int K, int D, int root = 0);
 
-// Server: aggregate local sums & counts from all ranks into global centroids.
-// Assumes local_cent (K*D) holds sums, local_cnts (K) holds counts.
-void server_aggregate(const double* local_cent,
-                      const int*    local_cnts,
-                      double*       global_cent,
+/*=====  server-worker pattern  =====================================*/
+void server_exchange(double*       centroids,   // IN/OUT (only valid on rank 0)
+                      const int*    counts,      // IN  (valid on every rank)
                       int           K,
                       int           D);
 
-// Worker: send local sums & counts to server, receive new global centroids back.
-// After call, `centroids` holds the updated global centroids.
-void worker_exchange(double*       centroids,
-                     const int*    local_cnts,
+void worker_exchange(double*       centroids,    // IN  local sums, OUT global avg
+                     const int*    local_counts, // IN  local counts
                      int           K,
                      int           D,
-                     int           server_rank);
+                     int           server_rank = 0);
 
-// Fully-decentralized: everyone ends up with true global average.
-void allreduce_average(double*       centroids,  // IN: local sums; OUT: global avg
-                       const int*    counts,     // IN: local counts
-                       int           K,
-                       int           D);
+/*=====  peer-to-peer pattern  ======================================*/
+void allreduce_average(double* centroids, const int* counts,
+                       int K, int D);
 
 #endif // MPI_HELPERS_HPP

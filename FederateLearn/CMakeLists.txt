@@ -25,7 +25,33 @@ set(SOURCES
 add_executable(federated_kmeans ${SOURCES})
 target_include_directories(federated_kmeans PRIVATE include)
 target_link_libraries(federated_kmeans PRIVATE MPI::MPI_CXX)
+find_program(MPIEXEC_EXECUTABLE
+        NAMES mpiexec mpirun
+        HINTS
+        "C:/Program Files/Microsoft MPI/Bin"
+)
+set(MPI_PROCS 5 CACHE STRING "Total MPI ranks: 1 server + N clients")
 
+
+if (MPIEXEC_EXECUTABLE)
+    add_custom_target(run_mpi
+            COMMAND ${MPIEXEC_EXECUTABLE} -np ${MPI_PROCS} $<TARGET_FILE:federated_kmeans>
+            DEPENDS federated_kmeans
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "🚀 Launching federated_kmeans with ${MPI_PROCS} MPI ranks"
+            EXCLUDE_FROM_ALL
+    )
+else()
+    message(WARNING "Could not find 'mpirun' or 'mpiexec' in PATH; 'run_mpi' target will do nothing.")
+endif()
+
+add_executable(eval
+        src/eval.cpp
+        src/kmeans.cpp
+        src/dataloader.cpp
+        src/mpi_helpers.cpp)
+target_include_directories(eval PRIVATE include)
+target_link_libraries(eval PRIVATE MPI::MPI_CXX)
 
 # --- Unit test ---------------------------------------------------------
 enable_testing()

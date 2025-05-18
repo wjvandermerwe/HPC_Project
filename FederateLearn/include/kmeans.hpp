@@ -25,10 +25,12 @@ public:
 
     // run local updates on `n` samples in `data` (row-major n×D)
     void run(const double* data, int n);
-
+    bool save(const std::string& filename) const;
+    bool load(const std::string& filename);
     // getters
-    const std::vector<double>& centroids() const { return centroids_; }
-    const std::vector<int>&    counts()    const { return counts_; }
+    std::vector<double>& centroids() { return centroids_; }
+    std::vector<int>& counts() { return counts_; }
+    KMeansConfig& cfg() {return cfg_;}
 
 private:
     KMeansConfig         cfg_;
