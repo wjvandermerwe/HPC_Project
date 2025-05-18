@@ -23,6 +23,37 @@ clients = {
     "D":  ( [8,9],   1000,  200 ),
 }
 
+def write_single_test_shard(test_X, test_y,
+                            client_id, label_subset,
+                            n_test,
+                            output_dir="data"):
+    """
+    Creates one test .bin for the specified client:
+      - Filters test_X/test_y by label_subset
+      - Shuffles and takes up to n_test samples
+      - Writes data/train_client_<client_id>.bin
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 1) filter
+    mask = np.isin(test_y, label_subset)
+    Xf = test_X[mask]
+
+    # 2) shuffle & truncate
+    idx = np.random.permutation(len(Xf))[:n_test]
+    Xe = Xf[idx]
+
+    # 3) flatten and write
+    n, H, W, C = Xe.shape
+    D = H * W * C
+    flat = Xe.reshape(n, D)
+    path = os.path.join(output_dir, f"test_client_{client_id}.bin")
+    with open(path, "wb") as f:
+        f.write(struct.pack("ii", n, D))
+        f.write(flat.tobytes())
+    print(f"Wrote {path}: {n} samples × {D} dims")
+
+
 def build_shard(X, y, labels, max_samples):
     # filter by label subset
     mask = np.isin(y, labels)
@@ -45,6 +76,7 @@ def write_binary(name, X):
         f.write(flat.tobytes())
     print(f"Wrote {path}: {n} samples × {D} dims")
 
+prepare_test_shards(test_X, test_y, clients, output_dir="tests/data")
 # Process each client
 for client_id, (labels, n_train, n_test) in clients.items():
     # build train/test shards

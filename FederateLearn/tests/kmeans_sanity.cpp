@@ -1,82 +1,62 @@
-//
-// Created by johan on 17/05/2025.
-//
+// tests/kmeans_bin_test.cpp
+
 #include <cassert>
 #include <iostream>
 #include <vector>
-#include <string>
-#include <filesystem>
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+
+#include "dataloader.hpp"
 #include "kmeans.hpp"
 
 int main() {
-    namespace fs = std::filesystem;
-    const std::string images_dir = "images";
+    // 1) Load a binary shard (pick whichever client you like)
+    std::string filename = "data/train_client_A.bin";
+    std::vector<double> full_data;
+    int full_n, D;
+    bool ok = load_binary_dataset(filename, full_data, full_n, D);
+    assert(ok && full_n > 0 && D > 0 && "Failed to load binary dataset");
 
-    // Collect image paths
-    std::vector<fs::path> img_files;
-    for (auto& p : fs::directory_iterator(images_dir)) {
-        if (p.is_regular_file()) {
-            img_files.push_back(p.path());
-        }
-    }
-    assert(!img_files.empty());
-    const int n = static_cast<int>(img_files.size());
+    // 2) Take exactly 100 samples (or fewer if the shard is small)
+    int test_n = std::min(full_n, 100);
+    std::vector<double> data(test_n * D);
+    std::copy_n(full_data.data(), test_n * D, data.data());
 
-    // Load first image to get dimensions
-    int width, height, channels;
-    unsigned char* data0 = stbi_load(img_files[0].string().c_str(), &width, &height, &channels, 0);
-    assert(data0 && "Failed to load image");
-    stbi_image_free(data0);
-    const int D = width * height * channels;
-
-    // Prepare data array (n x D)
-    std::vector<double> data;
-    data.reserve(n * D);
-    for (const auto& img_path : img_files) {
-        int w, h, c;
-        unsigned char* pixels = stbi_load(img_path.string().c_str(), &w, &h, &c, channels);
-        assert(pixels && w == width && h == height && c == channels);
-
-        // Normalize to [0,1]
-        for (int i = 0; i < w * h * c; ++i) {
-            data.push_back(pixels[i] / 255.0);
-        }
-        stbi_image_free(pixels);
-    }
-
-    // K-Means configuration
+    // 3) Configure K-Means
     KMeansConfig cfg;
-    cfg.K = 2;
-    cfg.D = D;
-    cfg.local_iters = 1;
-    cfg.batch_size = n;
-    cfg.seed = 123;
+    cfg.K           = 2;        // two clusters for test
+    cfg.D           = D;
+    cfg.local_iters = 1;        // one mini-batch pass
+    cfg.batch_size  = test_n;   // use all selected samples
+    cfg.seed        = 42;
 
-    // Run K-Means
+    // 4) Initialize and run
     KMeans km(cfg);
     km.init_centroids();
     auto cent_before = km.centroids();
-    km.run(data.data(), n);
-    auto cent_after = km.centroids();
+    km.run(data.data(), test_n);
+    auto cent_after  = km.centroids();
     const auto& counts = km.counts();
 
-    // Assertions
-    assert(static_cast<int>(cent_after.size()) == cfg.K * cfg.D);
-    assert(static_cast<int>(counts.size()) == cfg.K);
-    int total_count = 0;
-    for (int c : counts) total_count += c;
-    assert(total_count == cfg.batch_size && "Sum of counts should equal batch size");
+    // 5) Assertions
+    assert((int)cent_after.size() == cfg.K * D);
+    assert((int)counts.size()    == cfg.K);
 
-    // Centroids should change after run
+    int total_count = 0;
+    for (int c : counts) {
+        total_count += c;
+    }
+    assert(total_count == test_n && "Counts must sum to test_n");
+
     bool changed = false;
     for (size_t i = 0; i < cent_after.size(); ++i) {
-        if (cent_after[i] != cent_before[i]) { changed = true; break; }
+        if (cent_after[i] != cent_before[i]) {
+            changed = true;
+            break;
+        }
     }
-    assert(changed && "Centroids did not change after run");
+    assert(changed && "Centroids did not change after run()");
 
-    std::cout << "KMeans image test passed on " << n << " images of size "
-              << width << "x" << height << "x" << channels << std::endl;
+    std::cout << "kmeans_bin_test passed: ran on "
+              << test_n << " samples of dimension "
+              << D << "\n";
     return 0;
 }
