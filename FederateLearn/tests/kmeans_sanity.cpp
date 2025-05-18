@@ -9,7 +9,7 @@
 
 int main() {
     // 1) Load a binary shard (pick whichever client you like)
-    std::string filename = "data/train_client_A.bin";
+    std::string filename = "../tests/data/test_client_A.bin";
     std::vector<double> full_data;
     int full_n, D;
     bool ok = load_binary_dataset(filename, full_data, full_n, D);
@@ -20,15 +20,13 @@ int main() {
     std::vector<double> data(test_n * D);
     std::copy_n(full_data.data(), test_n * D, data.data());
 
-    // 3) Configure K-Means
     KMeansConfig cfg;
-    cfg.K           = 2;        // two clusters for test
+    cfg.K           = 2;
     cfg.D           = D;
-    cfg.local_iters = 1;        // one mini-batch pass
-    cfg.batch_size  = test_n;   // use all selected samples
+    cfg.local_iters = 1;
+    cfg.batch_size  = test_n;
     cfg.seed        = 42;
 
-    // 4) Initialize and run
     KMeans km(cfg);
     km.init_centroids();
     auto cent_before = km.centroids();
@@ -36,7 +34,6 @@ int main() {
     auto cent_after  = km.centroids();
     const auto& counts = km.counts();
 
-    // 5) Assertions
     assert((int)cent_after.size() == cfg.K * D);
     assert((int)counts.size()    == cfg.K);
 

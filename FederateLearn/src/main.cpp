@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     mpi_initialize(rank, world);
 
     // load this rank’s data shard
-    std::string filename = "data/train_client_";
+    std::string filename = "../data/train_client_";
     filename += char('A' + rank);  // assuming clients A, B, C, …
     filename += ".bin";
 

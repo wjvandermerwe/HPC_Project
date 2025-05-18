@@ -76,7 +76,7 @@ def write_binary(name, X):
         f.write(flat.tobytes())
     print(f"Wrote {path}: {n} samples × {D} dims")
 
-prepare_test_shards(test_X, test_y, clients, output_dir="tests/data")
+write_single_test_shard(test_X=test_X, test_y=test_y,n_test=100,client_id="A",label_subset=[1],  output_dir="tests/data")
 # Process each client
 for client_id, (labels, n_train, n_test) in clients.items():
     # build train/test shards

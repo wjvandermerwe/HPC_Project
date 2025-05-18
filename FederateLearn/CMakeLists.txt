@@ -29,7 +29,7 @@ target_link_libraries(federated_kmeans PRIVATE MPI::MPI_CXX)
 
 # --- Unit test ---------------------------------------------------------
 enable_testing()
-add_executable(kmeans_test tests/kmeans_sanity.cpp src/kmeans.cpp)
+add_executable(kmeans_test tests/kmeans_sanity.cpp src/kmeans.cpp src/dataloader.cpp)
 target_include_directories(kmeans_test PRIVATE include)
 target_link_libraries(kmeans_test PRIVATE MPI::MPI_CXX)
 add_test(NAME KMeansSanity COMMAND kmeans_test)
