@@ -1,89 +1,62 @@
 #!/usr/bin/env python3
-import os
-import struct
-import numpy as np
+import os, struct, numpy as np
 from tensorflow.keras.datasets import cifar10
 
-# Output directory
+# ------------------------------------------------------------------#
+# Config                                                             #
+# ------------------------------------------------------------------#
 output_dir = "data"
 os.makedirs(output_dir, exist_ok=True)
 
-# Load CIFAR-10
-(train_X, train_y), (test_X, test_y) = cifar10.load_data()
-train_X = train_X.astype(np.float64) / 255.0
-test_X  = test_X.astype(np.float64)  / 255.0
-train_y = train_y.flatten()
-test_y  = test_y.flatten()
-
-# Define clients: (label_subset, num_train, num_test)
 clients = {
-    "A":  ( [0,1,2], 5000, 1000 ),
-    "B":  ( [3,4,5], 3000,  500 ),
-    "C":  ( [6,7],   2000,  400 ),
-    "D":  ( [8,9],   1000,  200 ),
+    "A": ([0, 1, 2], 5000, 1000, 0.7),
+    "B": ([3, 4, 5], 3000,  500, 0.7),
+    "C": ([6, 7],    2000,  400, 0.7),
+    "D": ([8, 9],    1000,  200, 0.7),
 }
 
-def write_single_test_shard(test_X, test_y,
-                            client_id, label_subset,
-                            n_test,
-                            output_dir="data"):
-    """
-    Creates one test .bin for the specified client:
-      - Filters test_X/test_y by label_subset
-      - Shuffles and takes up to n_test samples
-      - Writes data/train_client_<client_id>.bin
-    """
-    os.makedirs(output_dir, exist_ok=True)
+(train_X, train_y), (test_X, test_y) = cifar10.load_data()
+train_X, test_X = train_X.astype(np.float64)/255.0, test_X.astype(np.float64)/255.0
+train_y, test_y = train_y.flatten(), test_y.flatten()
 
-    # 1) filter
-    mask = np.isin(test_y, label_subset)
-    Xf = test_X[mask]
+def build_skewed_shard(X, y, fav_labels, prob_fav, n_samples):
+    fav_mask    = np.isin(y, fav_labels)
+    other_mask  = ~fav_mask
 
-    # 2) shuffle & truncate
-    idx = np.random.permutation(len(Xf))[:n_test]
-    Xe = Xf[idx]
+    fav_idx     = np.where(fav_mask)[0]
+    other_idx   = np.where(other_mask)[0]
 
-    # 3) flatten and write
-    n, H, W, C = Xe.shape
-    D = H * W * C
-    flat = Xe.reshape(n, D)
-    path = os.path.join(output_dir, f"test_client_{client_id}.bin")
-    with open(path, "wb") as f:
-        f.write(struct.pack("ii", n, D))
-        f.write(flat.tobytes())
-    print(f"Wrote {path}: {n} samples × {D} dims")
+    n_fav   = int(n_samples * prob_fav)
+    n_other = n_samples - n_fav
 
+    sel = np.concatenate([
+        np.random.choice(fav_idx,   n_fav,   replace=False),
+        np.random.choice(other_idx, n_other, replace=False)
+    ])
+    np.random.shuffle(sel)
+    return X[sel]
 
-def build_shard(X, y, labels, max_samples):
-    # filter by label subset
-    mask = np.isin(y, labels)
-    Xf = X[mask]
-    yf = y[mask]
-    # shuffle and truncate
-    perm = np.random.permutation(len(Xf))
-    idx  = perm[:max_samples]
-    return Xf[idx], yf[idx]
-
-def write_binary(name, X):
+def write_binary(name, X, out_dir=output_dir):
     n, H, W, C = X.shape
     D = H * W * C
     flat = X.reshape(n, D)
-    path = os.path.join(output_dir, f"{name}.bin")
+    path = os.path.join(out_dir, f"{name}.bin")
     with open(path, "wb") as f:
-        # header
         f.write(struct.pack("ii", n, D))
-        # payload
         f.write(flat.tobytes())
-    print(f"Wrote {path}: {n} samples × {D} dims")
+    print(f"Wrote {path}: {n} × {D}")
 
-write_single_test_shard(test_X=test_X, test_y=test_y,n_test=100,client_id="A",label_subset=[1],  output_dir="tests/data")
-# Process each client
-for client_id, (labels, n_train, n_test) in clients.items():
-    # build train/test shards
-    Xt, yt = build_shard(train_X, train_y, labels, n_train)
-    Xe, ye = build_shard(test_X,  test_y,  labels, n_test)
-    # write them
-    write_binary(f"train_client_{client_id}", Xt)
-    write_binary(f"test_client_{client_id}",  Xe)
+for cid, (fav, n_tr, n_te, bias) in clients.items():
+    Xtr = build_skewed_shard(train_X, train_y, fav, bias, n_tr)
+    Xte = build_skewed_shard(test_X,  test_y,  fav, bias, n_te)
+
+    write_binary(f"train_client_{cid}", Xtr)
+    write_binary(f"test_client_{cid}",  Xte)
+
+write_binary(
+    "tests/data/test_client_A_100",
+    build_skewed_shard(test_X, test_y, [0,1,2], 0.7, 100),
+    out_dir="."
+)
 
 print("All shards written.")

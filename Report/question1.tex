@@ -1,0 +1,79 @@
+150–200 word summary of the full paper.
+% TODO: Briefly introduce federated learning, the goal of this project, key design decisions, experimental highlights, and final performance.
+\end{abstract}
+
+% --------------------------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+% TODO: General problem introduction
+% - Why distributed / federated learning?% - Why clustering (K-Means) in an FL context?% - Challenges: non‑IID data, communication cost, convergence.
+% -- Cite landmark FL papers [McMahan et al. 2017], non‑IID analysis [Zhao 2018], etc.
+
+% --------------------------------------------------------------------
+\section{Related Work}
+% TODO: Two–three paragraphs positioning the work vs. classical parallel K‑Means, FedAvg, recent FL clustering efforts.
+
+% --------------------------------------------------------------------
+\section{Methodology}
+\label{sec:method}
+
+\subsection{System Overview}
+% TODO: Describe server–worker architecture, dataset shards, communication pattern, process layout on MSL cluster.
+
+\subsection{Federated K‑Means Algorithm}
+% TODO: Explain weighted‐sum vs. average aggregation, mini‑batch updates, and stopping criterion.
+
+\begin{algorithm}[h]
+\caption{Federated Mini‑Batch K‑Means (per global round)}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} initial centroids $C^{(0)}$, $K$, $R$, batch size $B$.
+\FOR{$r = 0$ to $R-1$}
+\STATE Each client $i$ samples $B$ points and runs one mini‑batch update\hfill// \emph{local_update}
+\STATE Clients send weighted sums and counts to server via $\textsc{Reduce}$
+\STATE Server averages to obtain $C^{(r+1)}$\hfill// \emph{aggregation}
+\STATE Server broadcasts $C^{(r+1)}$ back to all clients
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Validation Strategy}
+% TODO: Convergence check, inertia calculation, cluster purity on held‑out test set.
+
+% --------------------------------------------------------------------
+\section{Experimental Setup}
+\label{sec:setup}
+\subsection{Datasets}
+% CIFAR‑10; description, pre‑processing pipeline, non‑IID split (Dirichlet α=0.5).
+
+\subsection{Hardware and Software}
+% TODO: MSL cluster specs (GPU? CPU cores per node, interconnect), MPI version, compiler flags.
+
+\subsection{Evaluation Metrics}
+% Inertia, average squared distance, per‑cluster counts, wall‑clock time and speed‑up vs. centralized baseline.
+
+% --------------------------------------------------------------------
+\section{Results and Discussion}
+\label{sec:results}
+\subsection{Quantitative Results}
+% TODO: Table or figure with inertia vs. global rounds, comparison with centralized.
+
+\subsection{Communication Cost}
+% TODO: Total bytes sent per round, scalability when doubling clients.
+
+\subsection{Impact of Non‑IID Skew}
+% TODO: Plot inertia for α∈{0.1,0.5,10}. Discuss degradation.
+
+% --------------------------------------------------------------------
+\section{Evidence of Multi‑Node Execution}
+% TODO: Include screenshot / SLURM job log snippet demonstrating ranks spanning >1 node.
+
+\begin{figure}[h]
+\centering
+%\includegraphics[width=0.45\textwidth]{figs/cluster_log.png}
+\caption{MSL cluster job: 2 nodes × 4 ranks each. Highlighted section shows hostname per rank.}
+\label{fig:msl}
+\end{figure}
+
+% --------------------------------------------------------------------
+\section{Conclusion and Future Work}
+% TODO: Summarize contributions, note limitations, outline next steps (e.g., K‑Means++, asynchronous updates, larger datasets).

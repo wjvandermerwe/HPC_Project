@@ -73,6 +73,10 @@ int main(int argc, char** argv)
 
     /* ---------- 7. Show a snippet of result ---------- */
     if (rank == SERVER_RANK) {
+        if (km.save("centroids.bin"))
+            std::cout << "Centroids saved to centroids.bin\n";
+        else
+            std::cerr << "Failed to save centroids!\n";
         std::cout << "Centroid[0][0..4]: ";
         for (int i = 0; i < std::min(K * global_D, 5); ++i)
             std::cout << km.centroids()[i] << ' ';

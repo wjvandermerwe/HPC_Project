@@ -1,14 +1,16 @@
-cmake_minimum_required(VERSION 3.18)
-project(cuRaytracer-base LANGUAGES CXX CUDA)
+cmake_minimum_required(VERSION 3.31)
+project(CudaRayTracer LANGUAGES CXX CUDA)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_STANDARD 17)
-
+set(CMAKE_CUDA_STANDARD 26)
 find_package(CUDAToolkit REQUIRED)
 
-# adjust this if you have headers in a different spot
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-add_executable(cuRaytracer-base cuRaytracer-base.cu)
+file(GLOB SRC_C "${CMAKE_SOURCE_DIR}/sources/*.c")
 
-target_link_libraries(cuRaytracer-base PRIVATE CUDA::cudart)
+add_executable(CudaRayTracer
+        cuRaytracer-base.cu
+        ${SRC_C})
+
+set_target_properties(CudaRayTracer PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON)

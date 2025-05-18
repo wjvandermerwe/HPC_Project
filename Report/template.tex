@@ -1,0 +1,84 @@
+% 
+\documentclass[10pt]{article}
+\usepackage{amscd,amsfonts,amssymb,amstext,latexsym} 
+\usepackage{amsmath,mathbbol,mathrsfs,stmaryrd, mathtools} 
+%\usepackage{mathbbol,mathrsfs,stmaryrd}
+\usepackage {algorithm2e} 
+\usepackage{theoremref}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel} 
+\usepackage {enumerate}
+\usepackage{url}
+%\usepackage {algpseudocode}  
+\usepackage{graphics} 
+\usepackage{tikz}
+\usepackage[square]{natbib}
+\usepackage[]{geometry}
+\usetikzlibrary{automata,calc}
+%\usepackage{tgtermes} 
+\usepackage{listings}
+\usepackage{mathptmx}
+\usepackage{fancyhdr}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage[flushleft]{threeparttable}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{fancyhdr}
+\usepackage{multirow,multicol}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{tabto}
+\lstset{ %
+language=C++,                % choose the language of the code
+basicstyle={\ttfamily},       % the size of the fonts that are used for the code
+backgroundcolor=\color{white},  % choose the background color. You must add \usepackage{color}
+showspaces=false,               % show spaces adding particular underscores
+aboveskip=6mm, 
+%belowskip=3mm, 
+numbers=left, numberfirstline=false, numberblanklines=false,
+numberstyle=\tiny\color{gray}, numbersep= 5pt, 
+showstringspaces=false,         % underline spaces within strings
+showtabs=false,                 % show tabs within strings adding particular underscores
+%frame=single,           % adds a frame around the code
+%frame = tb, 
+frame = none, 
+tabsize=2,          % sets default tabsize to 2 spaces
+captionpos=b,           % sets the caption-position to bottom
+breaklines=true,        % sets automatic line breaking
+breakatwhitespace=false,    % sets if automatic breaks should only happen at whitespace
+escapeinside={\%*}{*)}          % if you want to add a comment within your code
+}
+%\graphicspath{{../../pics/}}
+\fancypagestyle{plain}{
+\fancyhf{}
+\rhead{School of Computer Science and Applied Mathematics\\ 
+%\noindent\rule{15.4cm}{0.4pt}\\
+\footnotesize{\textsc{University of the Witwatersrand, Johannesburg}}}
+\lhead{\includegraphics[scale=0.08]{witslogo_h.png}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+}
+
+\textwidth=16.8cm 
+\textheight=21.0cm 
+\evensidemargin 0pt 
+\oddsidemargin 0pt 
+\leftmargin 0pt 
+\rightmargin 0pt 
+\setlength{\topmargin}{-20pt} 
+\setlength{\footskip}{30pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+\linespread{1} 
+% 
+\makeatletter
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\makeatother
+
+\input{assignment1_report}
+%\bibliographystyle{apalike}
+%\bibliography{../HPC}
+
+
