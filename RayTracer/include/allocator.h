@@ -10,7 +10,9 @@ typedef struct debugStruct {
     size_t allocatedChunks;
 } DebugStruct;
 #endif
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct poolAllocNode PoolAllocNode;
 typedef struct poolAllocNode{
     PoolAllocNode * restrict next; 
@@ -179,6 +181,8 @@ extern bool alloc_dynamicStackAllocFree(DynamicStackAlloc * restrict dsa, void *
 extern bool alloc_dynamicStackAllocFreeAll(DynamicStackAlloc * restrict dsa);
 extern void alloc_freeDynamicStackAlloc(DynamicStackAlloc * restrict dsa);
 extern void alloc_freeDynamicStackAllocD(DynamicStackAlloc * restrict dsa);
-
+#ifdef __cplusplus
+}
+#endif
 #endif
 

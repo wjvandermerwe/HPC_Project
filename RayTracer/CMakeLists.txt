@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.31)
-project(CudaRayTracer LANGUAGES CXX CUDA)
-
+project(CudaRayTracer LANGUAGES C CXX CUDA)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 26)
 find_package(CUDAToolkit REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-
 file(GLOB SRC_C "${CMAKE_SOURCE_DIR}/sources/*.c")
 
 add_executable(CudaRayTracer

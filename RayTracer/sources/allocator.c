@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdalign.h>
-
+#include "platform_alloc.h"
 #define ALIGNED_MALLOC(alignment, size) aligned_alloc((alignment), (size))
 #define CUSTOM_MALLOC(size) malloc((size))
 

@@ -4,13 +4,16 @@
 #define _INC_HYPATIA
 
 #define HYPATIA_VERSION "2.0.0"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifndef HYPAPI
-#	ifdef HYP_STATIC
-#		define HYPAPI static
-#	else
-#		define HYPAPI extern
-#	endif
+#	define HYPAPI static inline
+// #	ifdef HYP_STATIC
+// #		define HYPAPI static
+// #	else
+// #		define HYPAPI extern
+// #	endif
 #endif
 
 #ifndef HYP_DEF
@@ -728,8 +731,10 @@ HYPAPI struct matrix4 *matrix4_transformation_compose_EXP(struct matrix4 *self, 
 HYPAPI uint8_t matrix4_transformation_decompose_EXP(struct matrix4 *self, struct vector3 *scale, struct quaternion *rotation, struct vector3 *translation);
 #endif /* _INC_HYPATIA */
 
-
-#ifdef HYPATIA_IMPLEMENTATION
+#ifdef __cplusplus
+}
+#endif
+// #ifdef HYPATIA_IMPLEMENTATION
 
 
 /**
@@ -3891,4 +3896,4 @@ HYPAPI uint8_t matrix4_transformation_decompose_EXP(struct matrix4 *self, struct
 
 	return 1;
 }
-#endif /* HYPATIA_IMPLEMENTATION */
+// #endif /* HYPATIA_IMPLEMENTATION */

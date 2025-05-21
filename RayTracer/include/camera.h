@@ -6,7 +6,9 @@
 #include "hypatiaINC.h"
 #include "types.h"
 #include "ray.h"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct camera {
     vec3 origin;
     vec3 lowerLeftCorner;
@@ -35,7 +37,9 @@ extern void cam_setLookAtCamera(Camera * restrict c, vec3 lookFrom,
                                 CFLOAT focusDist);
 
 extern Ray cam_getRay(const Camera * restrict cam, CFLOAT u, CFLOAT v);
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

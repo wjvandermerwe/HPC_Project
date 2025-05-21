@@ -14,12 +14,16 @@
 #include <cuda.h>
 #include <cstdio>
 #include <vector>
+
+#include "outfile.h"
+
+extern "C" {
 #include "camera.h"
 #include "helpers.h"
 #include "sphere.h"
 #include "types.h"
 #include "util.h"
-
+}
 /* ---------- 1. Tiny device-side math helpers ----------------------- */
 
 __device__ inline vec3  v_add   (vec3 a, vec3 b){ return {a.x+b.x,a.y+b.y,a.z+b.z}; }
@@ -198,7 +202,7 @@ __device__ RGBColorF ray_color(Ray r,
 }
 
 /* ---------- 5. Kernel ------------------------------------------------*/
-__host__ __device__ RGBColorU8 coloru8_createf(CFLOAT r, CFLOAT g, CFLOAT b) {
+__host__ __device__ RGBColorU8 coloru8_createf_gpu(CFLOAT r, CFLOAT g, CFLOAT b) {
     return RGBColorU8{
         (uint8_t)fminf(r * 256.0f, 255.0f),
         (uint8_t)fminf(g * 256.0f, 255.0f),
@@ -234,11 +238,30 @@ __global__ void render_kernel(RGBColorU8 *out,
     col.b = sqrtf(col.b*scale);
 
     int idx = (h-1-y)*w + x;                    // flip Y like CPU code
-    out[idx] = coloru8_createf(col.r, col.g, col.b);
+    out[idx] = coloru8_createf_gpu(col.r, col.g, col.b);
 }
 
 /* ---------- 6. Host wrapper (called from your main) ----------------- */
+void writeToPPM(const char * filename, int width, int height,
+                const RGBColorU8* arr){
 
+    FILE *fptr = fopen(filename, "w");
+
+    if(fptr == NULL){
+        printf("ERROR: File not found.\n");
+        exit(1);
+    }
+
+    fprintf(fptr, "P3\n");
+    fprintf(fptr,"%d %d\n", width, height);
+    fprintf(fptr,"255\n");
+
+    for(int i = 0; i < width*height; i++){
+        fprintf(fptr, "%hu %hu %hu\n", arr[i].r, arr[i].g, arr[i].b);
+    }
+
+    fclose(fptr);
+}
 void render_cuda(const Camera &cam,
                  const std::vector<Sphere> &cpuSpheres,
                  RGBColorU8 *hostPixels,
@@ -248,10 +271,10 @@ void render_cuda(const Camera &cam,
     /* ---- a. flatten & copy spheres --------------------------------- */
     std::vector<SphereGPU> gpuSpheres;
     gpuSpheres.reserve(cpuSpheres.size());
-    for(const auto &s: cpuSpheres)
-        gpuSpheres.push_back({s.center, s.radius,
-                              s.sphMat.matType,
-                              s.sphMat.albedo, s.sphMat.fuzz, s.sphMat.ir});
+    // for(const auto &s: cpuSpheres)
+    //     gpuSpheres.push_back({s.center, s.radius,
+    //                           s.sphMat.matType,
+    //                           s.sphMat.albedo, s.sphMat.fuzz, s.sphMat.ir});
 
     for(const auto &s : cpuSpheres)
             {
@@ -260,22 +283,22 @@ void render_cuda(const Camera &cam,
                     g.center = s.center;
                     g.radius = s.radius;
 
-                    switch(s.sphMat.type)               // <- your enum / tag field
+                    switch(s.sphMat.matType)               // <- your enum / tag field
                         {
-                                case LAMBERT:
+                                case LAMBERTIAN:
                                     g.matType = 0;
-                                    g.albedo  = s.sphMat.lambert->albedo;
+                                    g.albedo  = ((LambertianMat*)s.sphMat.mat)->albedo;
                                     break;
 
                                 case METAL:
                                     g.matType = 1;
-                                    g.albedo  = s.sphMat.metal->albedo;
-                                    g.fuzz    = s.sphMat.metal->fuzz;
+                                    g.albedo  = ((MetalMat*)s.sphMat.mat)->albedo;
+                                    g.fuzz    = ((MetalMat*)s.sphMat.mat)->fuzz;
                                     break;
 
                                 case DIELECTRIC:
                                     g.matType = 2;
-                                    g.ir      = s.sphMat.diel->ir;
+                                    g.ir      = ((DielectricMat*)s.sphMat.mat)->ir;
                                     break;
                             }
                     gpuSpheres.push_back(g);            // named var sidesteps MSVC issue
@@ -315,6 +338,8 @@ void render_cuda(const Camera &cam,
     printf("[CUDA] Rendered %dx%d @ %d spp in %.2f ms (%.1f Mray/s)\n",
            W,H,samplesPerPixel,ms,
            (double)(W*H*samplesPerPixel)/(ms*1000.0));
+
+    writeToPPM("./out_test", W, H, hostPixels);
 
     /* ---- f. tidy up ------------------------------------------------- */
     cudaFree(d_out);
@@ -369,17 +394,14 @@ void randomSpheres2(ObjectLL *world, DynamicStackAlloc *dsa, int n,
     /*materialGround->albedo.r = 0.5;
     materialGround->albedo.g = 0.5;
     materialGround->albedo.b = 0.5;*/
-
-    obj_objLLAddSphere(world,
-                       (Sphere){.center = {.x = 0, .y = -1000, .z = 0},
-                                .radius = 1000,
-                                .sphMat = MAT_CREATE_LAMB_IP(materialGround)});
+    Sphere sph ={ { 0,  -1000, 0},MAT_CREATE_LAMB_IP(materialGround),1000};
+    obj_objLLAddSphere(world, sph);
 
     for (int a = -2; a < 9; a++) {
         for (int b = -9; b < 9; b++) {
             CFLOAT chooseMat = lcg(seed);
             vec3 center = {
-                .x = a + 0.9 * lcg(seed), .y = 0.2, .z = b + 0.9 * lcg(seed)};
+                 a + 0.9 * lcg(seed),  0.2, b + 0.9 * lcg(seed)};
 
             if (chooseMat < 0.8) {
                 // diffuse
@@ -417,19 +439,17 @@ void randomSpheres2(ObjectLL *world, DynamicStackAlloc *dsa, int n,
                 metalMat->albedo = albedo;
                 metalMat->fuzz = fuzz;
 
-                obj_objLLAddSphere(
-                    world, (Sphere){.center = center,
-                                    .radius = 0.2,
-                                    .sphMat = MAT_CREATE_METAL_IP(metalMat)});
+                Sphere sph = { center,MAT_CREATE_METAL_IP(metalMat), 0.2};
+
+                obj_objLLAddSphere(world, sph);
 
             } else {
                 DielectricMat *dMat = (DielectricMat*)alloc_dynamicStackAllocAllocate(
                     dsa, sizeof(DielectricMat), alignof(DielectricMat));
                 dMat->ir = 1.5;
+                Sphere sph = { center,MAT_CREATE_DIELECTRIC_IP(dMat), 0.2};
                 obj_objLLAddSphere(
-                    world, (Sphere){.center = center,
-                                    .radius = 0.2,
-                                    .sphMat = MAT_CREATE_DIELECTRIC_IP(dMat)});
+                    world, sph);
             }
         }
     }
@@ -444,10 +464,8 @@ void randomSpheres2(ObjectLL *world, DynamicStackAlloc *dsa, int n,
     material2->albedo.b = 0.1;
     */
 
-    obj_objLLAddSphere(world,
-                       (Sphere){.center = {.x = -4, .y = 1, .z = 0},
-                                .radius = 1.0,
-                                .sphMat = MAT_CREATE_LAMB_IP(material2)});
+    sph = { { -4, 1,  0},MAT_CREATE_LAMB_IP(material2),1.0};
+    obj_objLLAddSphere(world, sph);
 
     material2 = (LambertianMat*)alloc_dynamicStackAllocAllocate(dsa, sizeof(LambertianMat),
                                                 alignof(LambertianMat));
@@ -458,11 +476,8 @@ void randomSpheres2(ObjectLL *world, DynamicStackAlloc *dsa, int n,
     material2->albedo.g = 0.2;
     material2->albedo.b = 0.1;
     */
-
-    obj_objLLAddSphere(world,
-                       (Sphere){.center = {.x = -4, .y = 1, .z = -2.2},
-                                .radius = 1.0,
-                                .sphMat = MAT_CREATE_LAMB_IP(material2)});
+    sph = { { -4, 1,  -2.2},MAT_CREATE_LAMB_IP(material2),1.0};
+    obj_objLLAddSphere(world, sph);
 
     material2 = (LambertianMat*)alloc_dynamicStackAllocAllocate(dsa, sizeof(LambertianMat),
                                                 alignof(LambertianMat));
@@ -473,11 +488,8 @@ void randomSpheres2(ObjectLL *world, DynamicStackAlloc *dsa, int n,
     material2->albedo.g = 0.2;
     material2->albedo.b = 0.1;
     */
-
-    obj_objLLAddSphere(world,
-                       (Sphere){.center = {.x = -4, .y = 1, .z = +2.2},
-                                .radius = 1.0,
-                                .sphMat = MAT_CREATE_LAMB_IP(material2)});
+    sph = { { -4, 1,  +2.2},MAT_CREATE_LAMB_IP(material2),1.0};
+    obj_objLLAddSphere(world, sph);
 
     material2 = (LambertianMat*)alloc_dynamicStackAllocAllocate(dsa, sizeof(LambertianMat),
                                                 alignof(LambertianMat));
@@ -488,11 +500,8 @@ void randomSpheres2(ObjectLL *world, DynamicStackAlloc *dsa, int n,
     material2->albedo.g = 0.2;
     material2->albedo.b = 0.1;
     */
-
-    obj_objLLAddSphere(world,
-                       (Sphere){.center = {.x = -4, .y = 1, .z = -4.2},
-                                .radius = 1.0,
-                                .sphMat = MAT_CREATE_LAMB_IP(material2)});
+    sph = { { -4,  1,  -4.2},MAT_CREATE_LAMB_IP(material2), 1.0};
+    obj_objLLAddSphere(world, sph);
 }
 #undef randomFloat
 
@@ -510,9 +519,9 @@ int main() {
     RGBColorU8 *image =
             (RGBColorU8 *)malloc(sizeof(RGBColorF) * HEIGHT * WIDTH);
 
-    vec3 lookFrom = {.x = 13.0, .y = 2.0, .z = 3.0};
-    vec3 lookAt = {.x = 0.0, .y = 0.0, .z = 0.0};
-    vec3 up = {.x = 0.0, .y = 1.0, .z = 0.0};
+    vec3 lookFrom = { 13.0,  2.0,  3.0};
+    vec3 lookAt = { 0.0,  0.0,  0.0};
+    vec3 up = { 0.0,  1.0,  0.0};
 
     DynamicStackAlloc *dsa = alloc_createDynamicStackAllocD(1024, 100);
     DynamicStackAlloc *dsa0 = alloc_createDynamicStackAllocD(1024, 10);

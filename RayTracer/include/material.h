@@ -9,14 +9,16 @@
 #include "texture.h"
 
 #include <stdbool.h>
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct metalMat {
     RGBColorF albedo;
     CFLOAT fuzz;
 } MetalMat;
 
 typedef struct lambertianMat {
-    //RGBColorF albedo;
+    RGBColorF albedo;
     Texture lambTexture;
 } LambertianMat;
 
@@ -53,6 +55,8 @@ bool mat_scatter (
 #define MAT_CREATE_METAL(metalMatptr) (Material){ .mat = (metalMatptr), .matType = METAL}
 #define MAT_CREATE_DIELECTRIC(dielecMatptr) (Material){ .mat = (dielecMatptr), .matType = DIELECTRIC}
 
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif

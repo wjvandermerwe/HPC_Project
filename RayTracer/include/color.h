@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 #include "types.h"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct rgbColorU8 {
 
     uint8_t r;
@@ -41,5 +43,7 @@ extern RGBColorF colorf_multiply(RGBColorF x, RGBColorF y);
 extern RGBColorF colorf_add(RGBColorF x, RGBColorF y);
 
 #define COLOR_U8CREATE(r, g, b) _Generic((r), uint8_t: coloru8_create((r), (g), (b)), CFLOAT: coloru8_createf((r), (g), (b)))
-
+#ifdef __cplusplus
+}
+#endif
 #endif

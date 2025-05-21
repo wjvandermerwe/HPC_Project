@@ -7,7 +7,9 @@
 #include <vector>
 
 #include "sphere.h"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 inline void add_spheres_from_object(const Object& obj,
                                     std::vector<Sphere>& out);
 
@@ -56,4 +58,7 @@ inline std::vector<Sphere> obj_toVector(const ObjectLL* world)
     gather_spheres(*world, spheres);
     return spheres;
 }
+#ifdef __cplusplus
+}
+#endif
 #endif //HELPERS_H

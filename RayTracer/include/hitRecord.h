@@ -5,7 +5,9 @@
 
 #include "hypatiaINC.h"
 #include "types.h"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct material Material;
 
 typedef struct {
@@ -48,6 +50,8 @@ extern void hr_setRecordi(
             vec3 direction, HitRecord* restrict outRecord,
             const Material * restrict hitObjMat
         );
-
+#ifdef __cplusplus
+}
+#endif
 #endif
 
