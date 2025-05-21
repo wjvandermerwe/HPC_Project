@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <vector>
 #include "camera.h"
+#include "helpers.h"
 #include "sphere.h"
 #include "types.h"
 #include "util.h"
@@ -146,11 +147,14 @@ __device__ RGBColorF ray_color(Ray r,
     for(int depth=0; depth<maxDepth; ++depth)
     {
         HitRecord rec; rec.valid = false;
+        const SphereGPU *hit = nullptr;
         float nearest = 1e30f;
         /* find nearest hit */
         for(int i=0;i<ns;++i)
-            if(hit_sphere(spheres[i], r, 0.0001f, nearest, rec))
+            if(hit_sphere(spheres[i], r, 0.0001f, nearest, rec)) {
                 nearest = rec.distanceFromOrigin;
+                hit = &spheres[i];
+            }
 
         if(!rec.valid)
         {   /* background: simple gradient      */
@@ -163,7 +167,7 @@ __device__ RGBColorF ray_color(Ray r,
             break;
         }
 
-        const SphereGPU *s = static_cast<const SphereGPU*>(rec.uMeta);
+        const SphereGPU *s = hit;
 
         if(s->matType == 0) /* diffuse */
         {
@@ -248,6 +252,35 @@ void render_cuda(const Camera &cam,
         gpuSpheres.push_back({s.center, s.radius,
                               s.sphMat.matType,
                               s.sphMat.albedo, s.sphMat.fuzz, s.sphMat.ir});
+
+    for(const auto &s : cpuSpheres)
+            {
+                    SphereGPU g{};
+
+                    g.center = s.center;
+                    g.radius = s.radius;
+
+                    switch(s.sphMat.type)               // <- your enum / tag field
+                        {
+                                case LAMBERT:
+                                    g.matType = 0;
+                                    g.albedo  = s.sphMat.lambert->albedo;
+                                    break;
+
+                                case METAL:
+                                    g.matType = 1;
+                                    g.albedo  = s.sphMat.metal->albedo;
+                                    g.fuzz    = s.sphMat.metal->fuzz;
+                                    break;
+
+                                case DIELECTRIC:
+                                    g.matType = 2;
+                                    g.ir      = s.sphMat.diel->ir;
+                                    break;
+                            }
+                    gpuSpheres.push_back(g);            // named var sidesteps MSVC issue
+                }
+
 
     SphereGPU *d_spheres;
     cudaMalloc(&d_spheres, gpuSpheres.size()*sizeof(SphereGPU));
