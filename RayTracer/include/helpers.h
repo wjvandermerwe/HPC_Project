@@ -46,18 +46,30 @@ inline void add_spheres_from_object(const Object& obj,
     }
 }
 
-/* ---------------------------------------------------------------
-   PUBLIC API
-   --------------------------------------------------------------- */
 inline std::vector<Sphere> obj_toVector(const ObjectLL* world)
 {
     std::vector<Sphere> spheres;
     if (!world || !world->valid) return spheres;
 
-    spheres.reserve(world->numObjects);         // pre-allocate
+    spheres.reserve(world->numObjects);
     gather_spheres(*world, spheres);
     return spheres;
 }
+
+void writeToPPM(const char *filename,
+                int         width,
+                int         height,
+                const RGBColorU8 *pixels);
+
+CFLOAT lcg(int *seed);
+
+void randomSpheres2(ObjectLL        *world,
+                    DynamicStackAlloc *dsa,
+                    int               n,
+                    Image            *imgs,
+                    int              *seed);
+
+
 #ifdef __cplusplus
 }
 #endif
