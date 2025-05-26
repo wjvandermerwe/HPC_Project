@@ -48,7 +48,8 @@ vec3 reflect(vec3 v, vec3 n)
 {
     return v_sub(v, v_mul(n, 2.0f * v_dot(v,n)));
 }
-
+__device__ bool hit_sphere(const SphereGPU &s, const Ray &r,
+                           float tmin, float tmax, HitRecord &rec);
 static __device__ __forceinline__
 bool refract(vec3 v, vec3 n, float eta, vec3& refrOut)
 {
@@ -67,7 +68,13 @@ float schlick(float cosine, float ref_idx)
     r0 = r0*r0;
     return r0 + (1.0f - r0) * powf(1.0f - cosine, 5.0f);
 }
-__device__ vec3       random_vec3   (uint32_t &state);
+__device__ inline vec3 random_vec3(uint32_t &rngState) {
+    return {
+        rng_next(rngState),
+        rng_next(rngState),
+        rng_next(rngState)
+    };
+}
 __device__ vec3       random_in_unit_disk(uint32_t &state);
 __device__ Ray        cam_getRay_gpu(const Camera*, float u, float v,
                                      uint32_t &state);
@@ -128,6 +135,7 @@ struct SceneContext
     DynamicStackAlloc*   dsaTextures   = nullptr;
     LinearAllocFC*       hitRecAlloc   = nullptr;
 };
+
 
 SceneContext prepare_world();
 /* launch any kernel; example uses pixel-per-thread kernel */

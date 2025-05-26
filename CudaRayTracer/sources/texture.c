@@ -4,8 +4,9 @@
 
 #include <tgmath.h>
 #include <stdio.h>
-
 #include "stb_imageINC.h"
+#include <cuda_runtime.h>
+#include <vector>
 
 RGBColorF tex_value(const Texture * restrict t, CFLOAT u, CFLOAT v, vec3 p){
     if(t->texType == SOLID_COLOR){
@@ -47,6 +48,7 @@ void tex_loadImage(Image * restrict img, const char* filename){
 
     img->bytesPerScanLine = img->compsPerPixel * img->width;
 }
+
 
 RGBColorF tex_imageValue(const Image * restrict img, 
         CFLOAT u, CFLOAT v){

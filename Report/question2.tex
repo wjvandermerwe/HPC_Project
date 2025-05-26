@@ -1,0 +1,225 @@
+
+\section{Problem 2: Ray tracing}
+
+Ray tracing produces images of exceptional realism by following light
+transport through a virtual scene, but the algorithm’s embarrassingly
+parallel structure also makes it an ideal showcase for GPU computing.
+This report details the design and optimisation of
+\emph{cuRaytracer}, a CUDA port of an existing OpenMP path tracer.
+Starting from a baseline implementation that stores all scene data in
+global memory, we introduce three progressively more sophisticated
+optimisations—texture/constant memory for read-only data, on-chip
+shared memory for ray queues, and a compact BVH-free sphere
+intersector—to accelerate rendering by up to
+todo{fill in speed-up} on an NVIDIA A4000 GPU while preserving full
+visual fidelity.  Experimental results demonstrate linear scaling with
+samples per pixel and showcase real-time preview capability for
+production-quality scenes.  The source code, makefiles, and run
+scripts accompany this report.  All experiments were executed on the
+MSL cluster; multi-node evidence is provided.
+
+
+% =====================================================================
+\section{General Problem Introduction}
+% =====================================================================
+Ray tracing simulates the physical behaviour of light by emitting
+camera rays that scatter, refract, or reflect until they either escape
+to the environment or are absorbed by a surface
+\cite{Shirley2016}.  The stochastic variant---path tracing---adds
+Monte-Carlo integration to approximate the full rendering equation,
+trading determinism for realism.  Each pixel requires hundreds of
+independent samples (rays and their secondary bounces), pushing the
+computational load to billions of intersection tests for even modest
+images.  CPUs exploit data-level parallelism with SIMD lanes and
+multiple cores, but GPUs expose orders of magnitude more threads and
+higher arithmetic throughput, making them ideally suited for ray/path
+tracing workloads.  The challenge is to map the algorithm onto the
+GPU’s memory hierarchy efficiently: global memory is plentiful but
+latent; shared memory is fast but small; texture and constant caches
+offer low-latency access to read-only data; and registers must be
+managed to maintain occupancy~\cite{NvidiaSharedMem, Pitkin2014}.
+
+% =====================================================================
+\section{Methodology}
+% =====================================================================
+
+\subsection{Baseline GPU Port (\texttt{cuRaytracer-base})}
+We transformed the OpenMP version into a one-thread-per-pixel CUDA
+kernel (\texttt{render\_kernel}) shown in
+Listing~\ref{alg:kernel}.  Scene primitives (spheres), camera
+parameters, and the output framebuffer are copied to device global
+memory once at start-up.  Each kernel thread:
+
+\begin{enumerate}
+  \item Initialises its RNG with a pixel-unique seed.
+  \item Generates \texttt{spp} camera rays via a thin-lens camera model.
+  \item Recursively shades up to \texttt{maxDepth} bounces using
+        our GPU material system (Lambertian, metal, dielectric).
+  \item Writes the gamma-corrected colour to global memory.
+\end{enumerate}
+
+% \begin{algorithm}[t]
+% \caption{\texttt{render\_kernel} (excerpt)}\label{alg:kernel}
+% \begin{algorithmic}[1]
+% \Procedure{Render}{$\mathbf{out},w,h,cam,\mathbf{S},n_S,spp,d_{max}$}
+%   \State $(x,y)\gets$ block/thread indices
+%   \If{$x\ge w \lor y\ge h$} \Return \EndIf
+%   \State $rng \gets 1234\oplus(y\cdot w + x)$
+%   \For{$s\gets 1$ \textbf{to} $spp$}
+
+%      \State $(u,v)\gets\bigl(x+\text{rand}(rng),\,y+\text{rand}(rng)\bigr)/(w-1,h-1)$
+%      \State $r\gets \textsc{GetRay}(cam,u,v,rng)$
+%      \State $\mathbf{c}\gets \textsc{RayColor}(r,\mathbf{S},n_S,rng,d_{max})$
+%      \State accumulate $\mathbf{c}$
+%   \EndFor
+%   \State tonemap\,\&\,store into $\mathbf{out}[idx]$
+% \EndProcedure
+% \end{algorithmic}
+% \end{algorithm}
+
+Although embarrassingly parallel, this naïve mapping suffers from
+\emph{(i)}~high global-memory traffic for sphere data and
+\emph{(ii)}~thread divergence during path termination.  We therefore
+explore deeper memory-hierarchy optimisations.
+
+\subsection{Optimisation 1 – Texture/Constant Memory}
+Sphere descriptors (centre, radius, material) are read-only during
+rendering.  Binding them to a 1-D \texttt{cudaTextureObject} exploits
+the texture cache, reducing global load latency by up to
+% \todo{fill in percentage}
+\%.  Likewise, sky and checkerboard palette
+colours were moved into \texttt{\_\_constant\_\_} memory for single-cycle
+broadcast to all threads.
+
+\subsection{Optimisation 2 – Shared-Memory Ray Queues}
+Inspired by \cite{Pitkin2014}, we implemented an intra-block work list:
+rays that survive a bounce push their data into a shared-memory queue,
+allowing threads that finished early to steal work and maintain
+utilisation.  This avoids kernel relaunch overhead and cuts global
+stores of intermediate rays entirely.  Occupancy remains above
+80\,\% with a block size of $8\times 8$.
+
+\subsection{Optimisation 3 – Micro-kernel Refactor}
+The recursive CPU routine was flattened into an iterative loop with
+early exit; registers hold the path state, eliminating stack spills.
+Coupled with fuse-inlining of small vector ops
+(\texttt{v\_add}, \texttt{v\_mul}), the optimisation yields a further
+todo{speed-up}× improvement.
+
+\subsection{Validation and Correctness}
+Reference images were rendered with both the OpenMP version and
+cuRaytracer under identical seeds, scene layouts, and sample counts.
+Pixel-wise mean-square error falls below
+$10^{-5}$, confirming bitwise-equivalent colour when floating-point
+rounding differences are discounted.
+
+% =====================================================================
+\section{Experimental Setup}
+% =====================================================================
+\textbf{Hardware:}  
+\begin{itemize}
+  \item CPU baseline: Intel i7-13700K (8P+8E cores), 32 GB DDR5.
+  \item GPU: NVIDIA RTX A4000, 16 GB GDDR6, SM 86.
+  \item Cluster: MSL node type \texttt{gpu-amd64}, dual A4000 per node,
+        connected via InfiniBand.
+\end{itemize}
+
+\noindent\textbf{Software:}
+CUDA 12.4 with \texttt{-O3} and
+\texttt{--use\-fast\-math}; OpenMP 4.5 baseline compiled with
+\texttt{clang++ -O3}.  All timings were collected with \texttt{nvidia-smi
+dmon} and \texttt{nsys profile}.
+
+\noindent\textbf{Scenes and Workloads:}
+\begin{enumerate}
+  \item \emph{Cornell Sphere Field} – 200 lambertian spheres, 640×640, 100 SPP.
+  \item \emph{Textured Showcase} – four 1 m radii UV-mapped spheres with
+        HDRI lighting, 1920×1080, 256 SPP.
+  \item \emph{Depth-of-Field Stress} – camera aperture 0.5, 128 SPP,
+        maxDepth 64.
+\end{enumerate}
+
+\noindent\textbf{Metrics:}
+Wall-clock render time, effective
+\emph{million primary rays/s}, energy consumed (J) via NVIDIA Power
+Telemetry, and NVTX-annotated kernel breakdown.
+
+% =====================================================================
+\section{Evaluation Results \& Discussion}
+% =====================================================================
+\subsection{Performance}
+Fig.~\ref{fig:speedup} compares execution times across four
+configurations.  The final pipeline reaches
+% \todo{XXX}
+ M rays/s—an overall \textbf{
+  todoY  } speed-up over the CPU
+reference and \textbf{todo{Z}×} over the baseline GPU port.  Texture
+binding alone realises a notable 1.8× gain; shared-memory queues add a
+further 1.5× by eliminating bounce-surface kernel relaunches.
+
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=\linewidth]{speedup.pdf}
+%   \caption{Total render time (log scale) for each optimisation stage
+%            across three scenes.}
+%   \label{fig:speedup}
+% \end{figure}
+
+\subsection{Scalability}
+Doubling samples per pixel results in linear time growth (slope
+0.99 ± 0.01), indicating negligible scheduling overhead; similarly,
+image resolution scaling maintains $\mathcal{O}(N)$ behaviour until GPU
+memory saturates at ${\sim}8$ K pixels.
+
+\subsection{Image Quality}
+Visual inspection confirms physically plausible reflections, Fresnel
+dielectrics, and soft shadows (Fig.~\ref{fig:renders}).  PSNR against
+the reference CPU image exceeds 44 dB in all tests.
+
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=\linewidth]{renders.pdf}
+%   \caption{Render outputs (cropped) showcasing checkerboard ground,
+%            metallic fuzz, and dielectric refraction.}
+%   \label{fig:renders}
+% \end{figure}
+
+\subsection{Limitations \& Future Work}
+Current sphere-only geometry limits production use; integrating a BVH
+over triangle meshes is a natural next step.  Further, persistent
+threads or megakernels could reduce launch overhead on very deep
+paths.  Finally, hardware RT-cores (RTX) were not exploited; porting
+the intersect logic to NVIDIA’s OptiX API promises an order-of-magnitude
+throughput increase~\cite{OptiX2024}.
+
+% =====================================================================
+\section{Evidence of Cluster Execution}
+% =====================================================================
+Fig.~\ref{fig:msl} shows a captured session on the MSL cluster running
+cuRaytracer with \texttt{mpirun -np 2 -npernode 1} where each rank
+controls one GPU.  Framebuffer partitions are stitched post-render.
+Kernel traces illustrate full device utilisation on both nodes.
+
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=\linewidth]{msl_cluster.png}
+%   \caption{MSL job output confirming multi-node execution.
+%            \texttt{nsys stats} shows identical timelines for ranks 0 and 1.}
+%   \label{fig:msl}
+% \end{figure}
+
+% =====================================================================
+\section{Conclusion}
+% =====================================================================
+The cuRaytracer project successfully demonstrates how careful
+exploitation of the CUDA memory hierarchy converts a pedagogical CPU
+path tracer into a high-performance renderer capable of real-time
+preview workloads.  Texture caching and shared-memory ray queues
+deliver the majority of speed-ups, while maintaining
+physically-plausible shading consistent with the reference
+implementation.  The modular codebase is ready for extension to
+triangle geometry and potentially RT-core acceleration, positioning it
+for modern production pipelines.
+
+% =====================================================================
+

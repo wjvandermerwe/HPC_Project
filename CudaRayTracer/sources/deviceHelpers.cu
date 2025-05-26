@@ -17,13 +17,7 @@ extern "C" {
     #include "texture.h"
 }
 
-__device__ inline vec3 random_vec3(uint32_t &rngState) {
-    return {
-        rng_next(rngState),
-        rng_next(rngState),
-        rng_next(rngState)
-    };
-}
+
 
 __device__ vec3 random_in_unit_disk(uint32_t &state) {
     vec3 p;
@@ -108,30 +102,68 @@ __device__ RGBColorF ray_color(Ray r,
                                uint32_t &rngState, int maxDepth)
 {
     RGBColorF acc = {0,0,0}, atten = {1,1,1};
-    for(int depth=0; depth<maxDepth; ++depth)
+    #define GROUND_Y 0.0f           // height of the checkerboard plane         │
+    const float kEps = 1e-4f;       // tiny offset to avoid self-intersection   │
+    // ────────────────────────────────────────────────────────────────────────────
+    for (int depth = 0; depth < maxDepth; ++depth)
     {
+        /* ---------------------------------------------------------------
+           1.  Find the closest thing the ray meets:            sphere | plane
+        ---------------------------------------------------------------- */
         HitRecord rec; rec.valid = false;
-        const SphereGPU *hit = nullptr;
+        const SphereGPU *hitSphere = nullptr;
         float nearest = 1e30f;
-        /* find nearest hit */
-        for(int i=0;i<ns;++i)
-            if(hit_sphere(spheres[i], r, 0.0001f, nearest, rec)) {
-                nearest = rec.distanceFromOrigin;
-                hit = &spheres[i];
+
+        /* ⊳⊳  ground-plane candidate  ⊳⊳ */
+        bool planeHit = false;   // did we actually hit the plane?
+        float tPlane  = 1e30f;   // distance to that hit
+        if (r.direction.y < -kEps)                       // ray points downward
+        {
+            tPlane = (GROUND_Y - r.origin.y) / r.direction.y;
+            if (tPlane > kEps) {                         // plane is in front of us
+                nearest   = tPlane;
+                planeHit  = true;                        // unless a sphere is closer
+            }
+        }
+
+        /* ⊳⊳  sphere candidates  ⊳⊳ */
+        for (int i = 0; i < ns; ++i)
+            if (hit_sphere(spheres[i], r, kEps, nearest, rec))
+            {   // rec now holds the nearer sphere
+                nearest   = rec.distanceFromOrigin;
+                hitSphere = &spheres[i];
+                planeHit  = false;                       // sphere wins if nearer
             }
 
-        if(!rec.valid)
-        {   /* background: simple gradient      */
+        /* ---------------------------------------------------------------
+           2.  Shade whichever surface we actually hit
+        ---------------------------------------------------------------- */
+        if (planeHit)
+        {   /* ✔ we hit the ground plane first → checkerboard colour */
+            vec3 p = v_add(r.origin, v_mul(r.direction, tPlane));
+            bool dark = ( (int)floorf(p.x) + (int)floorf(p.z) ) & 1;
+            RGBColorF ground = dark ? c_bgB : c_bgA;
+
+            acc.r += atten.r * ground.r;
+            acc.g += atten.g * ground.g;
+            acc.b += atten.b * ground.b;
+            break;                       // path terminates on the ground
+        }
+
+        if (!rec.valid)
+        {   /* ✔ no object at all → sky */
             vec3 unit = v_unit(r.direction);
-            float t = 0.5f*(unit.y+1.f);
-            RGBColorF sky = { (1.f-t)+0.5f*t, (1.f-t)+0.7f*t, (1.f-t)+1.0f*t };
-            acc = { acc.r + atten.r*sky.r,
-                    acc.g + atten.g*sky.g,
-                    acc.b + atten.b*sky.b };
+            float t = 0.5f * (unit.y + 1.f);
+            RGBColorF sky = { (1.f - t) + 0.5f * t,
+                              (1.f - t) + 0.7f * t,
+                              (1.f - t) + 1.0f * t };
+            acc.r += atten.r * sky.r;
+            acc.g += atten.g * sky.g;
+            acc.b += atten.b * sky.b;
             break;
         }
 
-        const SphereGPU *s = hit;
+        const SphereGPU *s = hitSphere;
         if(s->matType == LAMBERTIAN)
         {
             vec3 dir = v_add(rec.normal, random_vec3(rngState));
@@ -167,7 +199,6 @@ __device__ RGBColorF ray_color(Ray r,
                 dir = reflect(v_unit(r.direction), rec.normal);
             }
             r = { rec.point, v_unit(dir) };
-            /* dielectric is colourless ⇒ no albedo attenuation */
             continue;
         }
 

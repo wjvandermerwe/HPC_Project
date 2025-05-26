@@ -19,7 +19,6 @@ int main(int argc, char** argv)
         mpi_finalize();  return 1;
     }
 
-    /* ---------- 2. Load local shard (clients only) ---------- */
     std::vector<double> data;
     int n_local = 0, local_D = 0;
 
@@ -34,7 +33,6 @@ int main(int argc, char** argv)
         std::cout << "[rank " << rank << "] loaded " << n_local << " samples, D=" << local_D << "\n";
     }
 
-    /* ---------- 3. Agree on global dimensionality ---------- */
     int global_D = 0;
     MPI_Allreduce(&local_D, &global_D, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     if (global_D == 0) {           // should never happen
@@ -42,16 +40,13 @@ int main(int argc, char** argv)
         mpi_finalize(); return 1;
     }
 
-    /* ---------- 4. Build K-Means object ---------- */
     const int K = 10;
     KMeansConfig cfg{K, global_D, /*local_iters*/5, /*batch_size*/100, /*seed*/1234};
     KMeans km(cfg);
 
-    /* ---------- 5. Server initialises centroids ---------- */
     if (rank == SERVER_RANK) km.init_centroids();
     broadcast_centroids(km.centroids().data(), K, global_D, SERVER_RANK);
 
-    /* ---------- 6. Federated rounds ---------- */
     const int ROUNDS = 20;
     for (int r = 0; r < ROUNDS; ++r) {
         if (rank > SERVER_RANK)          // workers only
@@ -71,7 +66,6 @@ int main(int argc, char** argv)
         if (rank == SERVER_RANK) std::cout << "[round " << r << "] done\n";
     }
 
-    /* ---------- 7. Show a snippet of result ---------- */
     if (rank == SERVER_RANK) {
         if (km.save("centroids.bin"))
             std::cout << "Centroids saved to centroids.bin\n";

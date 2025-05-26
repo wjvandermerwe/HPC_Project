@@ -1,61 +1,41 @@
 cmake_minimum_required(VERSION 3.14)
 project(federated_kmeans_mpi LANGUAGES C CXX)
-set(MPI_HOME "C:/Program Files (x86)/Microsoft SDKs/MPI")
 
-set(MPI_C_INCLUDE_PATH   "${MPI_HOME}/Include")
-set(MPI_CXX_INCLUDE_PATH "${MPI_HOME}/Include")
-
-set(MPI_C_LIBRARIES      "${MPI_HOME}/Lib/x64/msmpi.lib")
-set(MPI_CXX_LIBRARIES    "${MPI_HOME}/Lib/x64/msmpi.lib")
-# --- Compiler settings -------------------------------------------------
+# ---- Compiler settings -------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# --- Dependencies ------------------------------------------------------
-find_package(MPI REQUIRED)        # provides imported target MPI::MPI_CXXS
+# ---- MPI (cluster-friendly) -------------------------------------------
+# Rely on the system’s module-provided Open MPI / MPICH.
+find_package(MPI REQUIRED)   # supplies imported target MPI::MPI_CXX
 
-# --- Targets -----------------------------------------------------------
-set(SOURCES
-        src/main.cpp
-        src/kmeans.cpp
-        src/dataloader.cpp
-        src/mpi_helpers.cpp
-)
+# ---- Sources -----------------------------------------------------------
+set(SRCS
+    src/main.cpp
+    src/kmeans.cpp
+    src/dataloader.cpp
+    src/mpi_helpers.cpp)
 
-add_executable(federated_kmeans ${SOURCES})
+# ---- Main executable ---------------------------------------------------
+add_executable(federated_kmeans ${SRCS})
 target_include_directories(federated_kmeans PRIVATE include)
 target_link_libraries(federated_kmeans PRIVATE MPI::MPI_CXX)
-find_program(MPIEXEC_EXECUTABLE
-        NAMES mpiexec mpirun
-        HINTS
-        "C:/Program Files/Microsoft MPI/Bin"
-)
-set(MPI_PROCS 5 CACHE STRING "Total MPI ranks: 1 server + N clients")
 
-
-if (MPIEXEC_EXECUTABLE)
-    add_custom_target(run_mpi
-            COMMAND ${MPIEXEC_EXECUTABLE} -np ${MPI_PROCS} $<TARGET_FILE:federated_kmeans>
-            DEPENDS federated_kmeans
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "🚀 Launching federated_kmeans with ${MPI_PROCS} MPI ranks"
-            EXCLUDE_FROM_ALL
-    )
-else()
-    message(WARNING "Could not find 'mpirun' or 'mpiexec' in PATH; 'run_mpi' target will do nothing.")
-endif()
-
+# ---- Evaluation tool ---------------------------------------------------
 add_executable(eval
-        src/eval.cpp
-        src/kmeans.cpp
-        src/dataloader.cpp
-        src/mpi_helpers.cpp)
+    src/eval.cpp
+    src/kmeans.cpp
+    src/dataloader.cpp
+    src/mpi_helpers.cpp)
 target_include_directories(eval PRIVATE include)
 target_link_libraries(eval PRIVATE MPI::MPI_CXX)
 
-# --- Unit test ---------------------------------------------------------
+# ---- Unit test ---------------------------------------------------------
 enable_testing()
-add_executable(kmeans_test tests/kmeans_sanity.cpp src/kmeans.cpp src/dataloader.cpp)
+add_executable(kmeans_test
+    tests/kmeans_sanity.cpp
+    src/kmeans.cpp
+    src/dataloader.cpp)
 target_include_directories(kmeans_test PRIVATE include)
 target_link_libraries(kmeans_test PRIVATE MPI::MPI_CXX)
 add_test(NAME KMeansSanity COMMAND kmeans_test)
