@@ -40,7 +40,9 @@ typedef struct {
 
 extern RGBColorF tex_value(const Texture * restrict t, 
         CFLOAT u, CFLOAT v, vec3 p);
-
+extern int load_hdr(const char *filename,
+             float **out_data,
+             int *out_w, int *out_h, int *out_comp);
 extern RGBColorF tex_solidColorValue(const SolidColor * restrict t);
 extern RGBColorF tex_checkerValue(const Checker * restrict c,
                 CFLOAT u, CFLOAT v, vec3 p);

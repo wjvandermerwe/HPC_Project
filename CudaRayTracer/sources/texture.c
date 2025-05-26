@@ -4,9 +4,8 @@
 
 #include <tgmath.h>
 #include <stdio.h>
+
 #include "stb_imageINC.h"
-#include <cuda_runtime.h>
-#include <vector>
 
 RGBColorF tex_value(const Texture * restrict t, CFLOAT u, CFLOAT v, vec3 p){
     if(t->texType == SOLID_COLOR){
@@ -19,6 +18,24 @@ RGBColorF tex_value(const Texture * restrict t, CFLOAT u, CFLOAT v, vec3 p){
     
     v += u + p.x;
     return (RGBColorF){.r = 0.0, .g = 0.0, .b = 0.0};
+}
+
+int load_hdr(const char *filename,
+             float **out_data,
+             int *out_w, int *out_h, int *out_comp)
+{
+    // flip vertically if your rendering expects origin at bottom-left:
+    stbi_set_flip_vertically_on_load(1);
+
+    float *data = stbi_loadf(filename, out_w, out_h, out_comp, 0);
+    if (!data) {
+        fprintf(stderr, "ERROR: failed to load HDR '%s': %s\n",
+                filename, stbi_failure_reason());
+        return 0;
+    }
+
+    *out_data = data;
+    return 1;
 }
 
 RGBColorF tex_solidColorValue(const SolidColor * restrict t){

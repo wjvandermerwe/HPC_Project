@@ -1,7 +1,7 @@
 /* envmap.cu / .cpp ----------------------------------------------------- */
 
 #include "deviceHelpers.cuh"
-#include "hdrloader.h"
+#include "stb_image.h"
 
 static cudaTextureObject_t g_envTex = 0;        // handle queried by kernel
 
@@ -264,10 +264,17 @@ int main(int argc,char** argv)
     /* ----------- optional HDR skybox ------------ */
     cudaTextureObject_t envTex = 0;
     if (argc == 3) {                       // “hdr.exr” or “probe.hdr”
-        int w,h; std::vector<float4> img;
-        if (loadHDR(argv[2], img, w, h)) {
+        int w,h,comp; float* img;
+        float *hdrData = nullptr;
+        if (load_hdr(argv[2], &hdrData, &w, &h, &comp)) {
+            std::vector<float4> img(w*h);
+            for (int i = 0; i < w*h; ++i) {
+                float *p = hdrData + comp*i;
+                img[i] = make_float4(p[0], p[1], p[2], comp > 3 ? p[3] : 1.0f);
+            }
             uploadScene(dev.d_spheres, dev.ns);      // copy to __constant__
             envTex = uploadEnvMap(w, h, img.data());
+            stbi_image_free(hdrData);
         }
     } else
         uploadScene(dev.d_spheres, dev.ns);
@@ -283,7 +290,8 @@ int main(int argc,char** argv)
         host.width, host.height,
         host.cam,
         dev.ns,
-        host.spp, host.maxDepth,
+        host.spp,
+        host.maxDepth,
         envTex);                                   // <- extra arg
 
     cudaDeviceSynchronize();
