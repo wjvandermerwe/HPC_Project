@@ -25,7 +25,7 @@ MSL cluster; multi-node evidence is provided.
 Ray tracing simulates the physical behaviour of light by emitting
 camera rays that scatter, refract, or reflect until they either escape
 to the environment or are absorbed by a surface
-\cite{Shirley2016}.  The stochastic variant---path tracing---adds
+\parencite{Shirley2016}.  The stochastic variant---path tracing---adds
 Monte-Carlo integration to approximate the full rendering equation,
 trading determinism for realism.  Each pixel requires hundreds of
 independent samples (rays and their secondary bounces), pushing the
@@ -37,7 +37,7 @@ tracing workloads.  The challenge is to map the algorithm onto the
 GPU’s memory hierarchy efficiently: global memory is plentiful but
 latent; shared memory is fast but small; texture and constant caches
 offer low-latency access to read-only data; and registers must be
-managed to maintain occupancy~\cite{NvidiaSharedMem, Pitkin2014}.
+managed to maintain occupancy~ \parencite{NvidiaSharedMem, Pitkin2014}.
 
 % =====================================================================
 \section{Methodology}
@@ -46,7 +46,8 @@ managed to maintain occupancy~\cite{NvidiaSharedMem, Pitkin2014}.
 \subsection{Baseline GPU Port (\texttt{cuRaytracer-base})}
 We transformed the OpenMP version into a one-thread-per-pixel CUDA
 kernel (\texttt{render\_kernel}) shown in
-Listing~\ref{alg:kernel}.  Scene primitives (spheres), camera
+% Listing~\ref{alg:kernel}.
+  Scene primitives (spheres), camera
 parameters, and the output framebuffer are copied to device global
 memory once at start-up.  Each kernel thread:
 
@@ -58,24 +59,118 @@ memory once at start-up.  Each kernel thread:
   \item Writes the gamma-corrected colour to global memory.
 \end{enumerate}
 
-% \begin{algorithm}[t]
-% \caption{\texttt{render\_kernel} (excerpt)}\label{alg:kernel}
-% \begin{algorithmic}[1]
-% \Procedure{Render}{$\mathbf{out},w,h,cam,\mathbf{S},n_S,spp,d_{max}$}
-%   \State $(x,y)\gets$ block/thread indices
-%   \If{$x\ge w \lor y\ge h$} \Return \EndIf
-%   \State $rng \gets 1234\oplus(y\cdot w + x)$
-%   \For{$s\gets 1$ \textbf{to} $spp$}
+1. Experimental Setup
+Scene parameters
 
-%      \State $(u,v)\gets\bigl(x+\text{rand}(rng),\,y+\text{rand}(rng)\bigr)/(w-1,h-1)$
-%      \State $r\gets \textsc{GetRay}(cam,u,v,rng)$
-%      \State $\mathbf{c}\gets \textsc{RayColor}(r,\mathbf{S},n_S,rng,d_{max})$
-%      \State accumulate $\mathbf{c}$
-%   \EndFor
-%   \State tonemap\,\&\,store into $\mathbf{out}[idx]$
-% \EndProcedure
-% \end{algorithmic}
-% \end{algorithm}
+Resolution: 640 x 640
+
+Samples per pixel (spp): 100
+
+Max path‐trace depth: 50 bounces
+
+Camera: “look-from” at (13, 2, 3) looking at the origin, 20° FOV, aperture = 0.1, focus distance = 10
+
+Data
+
+A procedurally generated set of up to 64 spheres with randomized materials (Lambertian, Metal, Dielectric), created on the host via randomSpheres2(...).
+
+Hardware and timing
+
+The host launches a single CUDA kernel and times it using cudaEventRecord/cudaEventElapsedTime.
+
+Block size: 8×8 threads; grid size computed to cover the full image.
+
+The output buffer is allocated once on the device (cudaMalloc) and copied back at the end to produce a PPM image.
+
+2. Code Adjustments for GPU Acceleration
+a) Data transfer and initialization
+Scene upload
+
+Host std::vector<Sphere> → std::vector<SphereGPU> (a POD struct)
+
+Copy to device:
+
+Base version uses cudaMemcpy into a global device pointer (ctx.d\_spheres).
+
+Shared‐memory version copies into \_\_constant\_\_ SphereGPU d\_spheres[\dots], then at kernel launch each block threads copy from d\_spheres into fast shared memory.
+
+Environment map (HDR skybox)
+
+On host, load HDR with stbi\_loadf → pack into a float4 array.
+
+Upload via cudaMallocArray + cudaMemcpy2DToArray → create a cudaTextureObject\_t with wrap filtering and normalized coords.
+
+Pass that texture object into the kernel so each ray miss can sample a realistic sky.
+
+b) Kernel entry point
+Annotated \_\_global\_\_ void render\_kernel(\dots).
+
+Maps (blockIdx, threadIdx) to (x,y) pixel; early‐exit if outside image bounds.
+
+Each thread maintains its own uint32\_t rng seed based on pixel index, used by rng\_next() for per‐sample jitter.
+
+c) Ray‐tracing loop in device code
+Base vs. shared
+
+Base: calls a device function ray\_color(\dots) that scatters rays through the scene array in global memory.
+
+Shared: first warp of each block copies the constant‐memory sphere list into an extern \_\_shared\_\_ SphereGPU s\_sph[] array for all other threads to reuse (dram→SMEM).
+
+Ground plane
+
+Checked analytically: if ray points downward, compute tPlane, then checkerboard via floorf(x)+floorf(z) parity.
+
+Sphere hits
+
+Loops over up to ns spheres and tests with hit\_sphere(); maintains the nearest hit in a local HitRecord.
+
+Material shading
+
+Lambertian, metal, dielectric handled entirely on‐device (no host callbacks).
+
+Sky sampling
+
+If no hit, either sample the HDR texture with tex2D<float4>() or fall back to a simple vertical gradient.
+
+d) Memory and performance optimizations
+Constant memory for small, read-only sphere list.
+
+Shared memory preload in the “shared” variant to cut global‐memory traffic.
+
+cubin launch parameters: uses rsqrtf() and fused math (e.g. sqrtf()) to speed up gamma correction.
+
+Texture memory for environment map—leveraging the read‐only cache and hardware filtering.
+
+e) Host‐side orchestration
+prepare\_world(): builds the C\+\+ scene and returns camera, sphere list, framebuffer pointer.
+
+render\_init\_cuda(\dots): allocates device buffers, copies sphere data.
+
+main():
+
+Optionally loads HDR argv[2], calls uploadEnvMap() and uploadScene().
+
+Records start event.
+
+Launches render\_kernel<<<grid,block,shmem>>>(...).
+
+cudaEventSynchronize, cudaEventElapsedTime → prints “took XX ms”.
+
+Copies back the image and writes out via writeToPPM().
+
+In short, the original ray‐tracing loop and scene setup were uplifted into CUDA by:
+
+Splitting host and device responsibilities (scene build vs. ray march).
+
+Copying all geometry and HDR data into GPU memory (global/constant/texture).
+
+Converting recursive/iterative ray logic into device functions called inside a single monolithic \_\_global\_\_ kernel.
+
+Optimizing memory access via constant and shared memory, and using the texture cache for environment sampling.
+
+Parallelizing per‐pixel work over thousands of CUDA threads, each carrying its own RNG state and color accumulator.
+
+Let me know if you’d like deeper detail on any specific part of that pipeline!
 
 Although embarrassingly parallel, this naïve mapping suffers from
 \emph{(i)}~high global-memory traffic for sphere data and
@@ -148,7 +243,8 @@ Telemetry, and NVTX-annotated kernel breakdown.
 \section{Evaluation Results \& Discussion}
 % =====================================================================
 \subsection{Performance}
-Fig.~\ref{fig:speedup} compares execution times across four
+% Fig.~\ref{fig:speedup} 
+compares execution times across four
 configurations.  The final pipeline reaches
 % \todo{XXX}
  M rays/s—an overall \textbf{
@@ -173,7 +269,9 @@ memory saturates at ${\sim}8$ K pixels.
 
 \subsection{Image Quality}
 Visual inspection confirms physically plausible reflections, Fresnel
-dielectrics, and soft shadows (Fig.~\ref{fig:renders}).  PSNR against
+dielectrics, and soft shadows 
+% (Fig.~\ref{fig:renders}).  
+PSNR against
 the reference CPU image exceeds 44 dB in all tests.
 
 % \begin{figure}[t]
@@ -192,34 +290,4 @@ paths.  Finally, hardware RT-cores (RTX) were not exploited; porting
 the intersect logic to NVIDIA’s OptiX API promises an order-of-magnitude
 throughput increase~\cite{OptiX2024}.
 
-% =====================================================================
-\section{Evidence of Cluster Execution}
-% =====================================================================
-Fig.~\ref{fig:msl} shows a captured session on the MSL cluster running
-cuRaytracer with \texttt{mpirun -np 2 -npernode 1} where each rank
-controls one GPU.  Framebuffer partitions are stitched post-render.
-Kernel traces illustrate full device utilisation on both nodes.
-
-% \begin{figure}[t]
-%   \centering
-%   \includegraphics[width=\linewidth]{msl_cluster.png}
-%   \caption{MSL job output confirming multi-node execution.
-%            \texttt{nsys stats} shows identical timelines for ranks 0 and 1.}
-%   \label{fig:msl}
-% \end{figure}
-
-% =====================================================================
-\section{Conclusion}
-% =====================================================================
-The cuRaytracer project successfully demonstrates how careful
-exploitation of the CUDA memory hierarchy converts a pedagogical CPU
-path tracer into a high-performance renderer capable of real-time
-preview workloads.  Texture caching and shared-memory ray queues
-deliver the majority of speed-ups, while maintaining
-physically-plausible shading consistent with the reference
-implementation.  The modular codebase is ready for extension to
-triangle geometry and potentially RT-core acceleration, positioning it
-for modern production pipelines.
-
-% =====================================================================
 

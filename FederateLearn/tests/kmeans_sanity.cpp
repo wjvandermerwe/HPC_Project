@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 #include "dataloader.hpp"
 #include "kmeans.hpp"

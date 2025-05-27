@@ -254,6 +254,8 @@ __global__ void render_kernel(RGBColorU8 *out,
     out[(h-1-y)*w + x] = coloru8_createf_gpu(col.r, col.g, col.b);
 }
 
+#include <iostream>
+
 int main(int argc,char** argv)
 {
     /* ------------- scene on host ---------------- */
@@ -278,7 +280,10 @@ int main(int argc,char** argv)
         }
     } else
         uploadScene(dev.d_spheres, dev.ns);
-
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
     /* ------------- kernel launch --------------- */
     dim3 blk(8,8);
     dim3 grd( (host.width  + blk.x-1)/blk.x,
@@ -295,7 +300,15 @@ int main(int argc,char** argv)
         envTex);                                   // <- extra arg
 
     cudaDeviceSynchronize();
+    cudaEventRecord(stop);
 
+    cudaEventSynchronize(stop);
+    float msFinish;
+    cudaEventElapsedTime(&msFinish, start, stop);
+    std::cout << "[gpu_render] took " << msFinish << " ms\n";
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     render_finish_cuda(dev, host.framebuffer, "out.ppm");
     return 0;
 }

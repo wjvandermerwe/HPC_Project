@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "deviceHelpers.cuh"
 
 __global__ void render_kernel(RGBColorU8 *out,
@@ -35,7 +37,10 @@ int main() {
 
     SceneContext params = prepare_world();
     RenderCtx render_ctx = render_init_cuda(params.spheres, params.width, params.height);
-
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
     dim3 block(8,8);
     dim3 grid((params.width + block.x - 1)/block.x,
               (params.height + block.y - 1)/block.y);
@@ -45,7 +50,15 @@ int main() {
                                    params.cam,
                                    render_ctx.d_spheres, render_ctx.ns,
                                    params.spp, params.maxDepth);
+    cudaEventRecord(stop);
 
+    cudaEventSynchronize(stop);
+    float msFinish;
+    cudaEventElapsedTime(&msFinish, start, stop);
+    std::cout << "[gpu_render] took " << msFinish << " ms\n";
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     render_finish_cuda(render_ctx, params.framebuffer, "out");
 
     return 0;

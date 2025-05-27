@@ -54,7 +54,7 @@ for cid, (fav, n_tr, n_te, bias) in clients.items():
     write_binary(f"test_client_{cid}",  Xte)
 
 write_binary(
-    "tests/data/test_client_A_100",
+    "./tests/data/test_client_A_100",
     build_skewed_shard(test_X, test_y, [0,1,2], 0.7, 100),
     out_dir="."
 )

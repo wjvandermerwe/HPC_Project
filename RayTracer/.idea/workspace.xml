@@ -27,7 +27,29 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="14a07203-08ac-4011-80af-95cb77c55568" name="Changes" comment="commit to save first working" />
+    <list default="true" id="14a07203-08ac-4011-80af-95cb77c55568" name="Changes" comment="commit to save first working">
+      <change afterPath="$PROJECT_DIR$/../CudaRayTracer/readme.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../FederateLearn/cluster/federated_kmeans" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../CudaRayTracer/cuRaytracer-base.cu" beforeDir="false" afterPath="$PROJECT_DIR$/../CudaRayTracer/cuRaytracer-base.cu" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../CudaRayTracer/cuRaytracer-shared.cu" beforeDir="false" afterPath="$PROJECT_DIR$/../CudaRayTracer/cuRaytracer-shared.cu" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../CudaRayTracer/project_desc/ray-tracing-image-1.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../CudaRayTracer/project_desc/raytracing.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../FederateLearn/centroids.bin" beforeDir="false" afterPath="$PROJECT_DIR$/../FederateLearn/centroids.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../FederateLearn/cluster/download_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/../FederateLearn/cluster/download_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../FederateLearn/cluster/run.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../FederateLearn/cluster/run.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../FederateLearn/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/../FederateLearn/readme.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../FederateLearn/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../FederateLearn/src/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../FederateLearn/tests/kmeans_sanity.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../FederateLearn/tests/kmeans_sanity.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/question1.aux" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/question1.aux" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/question1.tex" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/question1.tex" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/question2.aux" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/question2.aux" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/template.aux" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/template.aux" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/template.fdb_latexmk" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/template.fdb_latexmk" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/template.fls" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/template.fls" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/template.log" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/template.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/template.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/template.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Report/template.synctex.gz" beforeDir="false" afterPath="$PROJECT_DIR$/../Report/template.synctex.gz" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -176,6 +198,7 @@
       <workItem from="1748194734708" duration="2600000" />
       <workItem from="1748232448743" duration="610000" />
       <workItem from="1748233477812" duration="18000" />
+      <workItem from="1748282594143" duration="10000" />
     </task>
     <task id="LOCAL-00001" summary="commit to save">
       <option name="closed" value="true" />

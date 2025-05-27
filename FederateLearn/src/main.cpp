@@ -13,7 +13,10 @@ int main(int argc, char** argv)
     /* ---------- 1. MPI init ---------- */
     int rank, world;
     mpi_initialize(rank, world);
-
+    char pname[MPI_MAX_PROCESSOR_NAME];
+    int name_len = 0;
+    MPI_Get_processor_name(pname, &name_len);
+    std::string node_name(pname, name_len);
     if (world < 2) {
         if (rank == 0) std::cerr << "Need ≥2 ranks (1 server + clients)\n";
         mpi_finalize();  return 1;
@@ -61,6 +64,11 @@ int main(int argc, char** argv)
             worker_exchange(km.centroids().data(),
                             km.counts().data(),
                             K, global_D, SERVER_RANK);
+            std::cout
+            << "[round "  << r
+            << "] rank "  << rank
+            << "@"        << node_name
+            << " done\n";
         }
 
         if (rank == SERVER_RANK) std::cout << "[round " << r << "] done\n";

@@ -1,6 +1,6 @@
 \section{Federated Kmeans}
 
-Federated learning enables multiple clients to collaboratively train models without sharing raw data, thereby preserving privacy and reducing communication overhead \cite{McMahan2017}. In many applications, particularly those involving heterogeneous data distributions, clustering of client updates prior to aggregation can further improve convergence and model quality \cite{Ghosh2020}. However, implementing clustered federated learning at scale requires efficient parallelization and synchronization mechanisms. This work presents an MPI-based framework for clustered federated learning on the MSL high-performance computing cluster, demonstrating how message passing can orchestrate client grouping and model aggregation across multiple nodes.
+Federated learning enables multiple clients to collaboratively train models without sharing raw data, thereby preserving privacy and reducing communication overhead \parencite{McMahan2017}. In many applications, particularly those involving heterogeneous data distributions, clustering of client updates prior to aggregation can further improve convergence and model quality \parencite{Ghosh2020}. However, implementing clustered federated learning at scale requires efficient parallelization and synchronization mechanisms. This work presents an MPI-based framework for clustered federated learning on the MSL high-performance computing cluster, demonstrating how message passing can orchestrate client grouping and model aggregation across multiple nodes.
 
 \section{Methodology}
 Our approach extends the Federated Averaging algorithm by introducing an intra-round clustering step. Each client computes a local update vector, which is then grouped into clusters using K-means before aggregation. The high-level steps are:
@@ -12,28 +12,141 @@ Our approach extends the Federated Averaging algorithm by introducing an intra-r
 \item Clients incorporate the received cluster-average update.
 \end{itemize}
 
-% \noindent Pseudo-code for the MPI-based clustering protocol is given in Algorithm\~\ref{alg\:mpi\_clustering}.
-% \begin{algorithm}\[h]
-% \caption{MPI Federated Clustering Protocol}\label{alg\:mpi\_clustering}
-% \begin{algorithmic}\[1]
-%\STATE \textbf{Input:} Number of clusters \$K\$, local epochs \$E\$, learning rate \$\eta\$
-%\STATE \textbf{Output:} Global model parameters \$w\$
-%\FOR{each communication round}
-%  \STATE Clients perform \$E\$ local epochs to compute update \$\Delta\_i\$
-%  \STATE MPI\_Gather updates \${\Delta\_i}\$ at root
-%  \STATE Root runs K-means on \${\Delta\_i}\$ to form clusters \$C\_1,\dots,C\_K\$
-%  \STATE For each cluster \$C\_j\$, compute average update \$\bar{\Delta}\_j\$
-%  \STATE MPI\_Bcast cluster averages \${\bar{\Delta}\_j}\$ to all processes
-%  \STATE Clients apply the cluster-specific update to their models
-%\ENDFOR
-% \end{algorithmic}
-% \end{algorithm}
+Hardware and MPI Environment
 
-\section{Experimental Setup}
-We evaluate our framework on the MSL cluster, leveraging multiple nodes interconnected via high-speed interconnect. Experiments use the MNIST dataset partitioned non-IID across 50 clients. Each MPI rank simulates one client on a distinct node where possible; experiments compare single-node (multi-process) and multi-node deployments. Performance metrics include model test accuracy, communication rounds to convergence, and wall-clock runtime. We log all MPI environment details and node allocations to verify distributed execution.
+\begin{itemize}
+    \item Experiments are run on the MSL HPC cluster using MPI across multiple nodes. 
+    \item Each MPI rank corresponds to one federated “client” process; rank 0 acts as the server/aggregator.
+\end{itemize}
 
-\section{Results and Discussion}
-Our clustered federated approach achieves faster convergence compared to vanilla Federated Averaging, reducing communication rounds by approximately 20% at similar target accuracy. Multi-node runs demonstrate near-linear scaling in communication overhead, validating the MPI implementation. Table\~\ref{tab\:results} summarizes key metrics (to be filled after experiments). We also include a snippet of the Slurm job output confirming execution on at least two distinct compute nodes in the MSL cluster.
+Data Preparation
+
+\begin{itemize}
+    \item The CIFAR-10 dataset is loaded via a Python script.
+    \item Four client shards (A–D) are created with non-IID class skews:
+    \begin{itemize}
+        \item Client A favors labels {0,1,2} with 70\% probability over 5 000 training and 1 000 test samples.
+        \item Client B favors {3,4,5} with 70\% over 3 000 train / 500 test.
+        \item Client C favors {6,7} with 70\% over 2 000 train / 400 test.
+        \item Client D favors {8,9} with 70\% over 1 000 train / 200 test.
+        Each shard is written to a binary file containing an integer pair (n, D) followed by row-major flattened feature vectors.
+    \end{itemize}
+\end{itemize}
+
+
+
+\subsection{Federated K-Means Workflow}
+
+Server (rank 0) initializes K = 10 random centroids of dimension D = H·W·C = 32·32·3 = 3 072.
+
+Centroids are broadcast to all client ranks.
+
+Local Updates (Rounds 0–19):
+
+Each worker (rank > 0) loads its local training shard and runs K-Means for 5 local iterations on a random minibatch of size 100.
+
+During each minibatch iteration, each sample is assigned to its nearest centroid and its contribution (sum and count) is accumulated.
+
+
+\subsection{Server Aggregation:}
+
+After local updates, workers send their per-centroid sums and counts to the server via MPI\_Reduce.
+
+The server computes the global weighted average for each centroid, then broadcasts the updated centroids back to all workers.
+
+After 20 communication rounds, the server saves the final centroid matrix to centroids.bin for later evaluation.
+
+
+\subsection{Evaluation Phase}
+
+A separate MPI program loads the saved centroids (centroids.bin) on rank 0 and broadcasts them.
+
+Each worker loads its test shard and computes:
+
+Local inertia (sum of squared distances to the nearest centroid)
+
+Cluster counts (number of test samples assigned to each centroid)
+
+Both metrics are reduced to the server, which reports:
+
+Total sample count, global inertia, average distance (\(\sqrt{inertia/total}\)), and per-cluster counts.
+
+
+\subsection{Metrics and Logging}
+
+Convergence Behavior: Tracked by printing “[round r] done” on the server after each aggregation.
+
+Final Centroid Preview: Server logs the first few centroid coordinates.
+
+Evaluation Outputs: Overall inertia and distribution of test samples across clusters.
+
+MPI Diagnostics: Each rank reports successful data loading and dimensionality.
+
+This setup ensures a clear federated K-Means workflow—from non-IID data sharding through iterative, communication-efficient centroid updates to quantitative evaluation on held-out test shards.
+
+
+\subsection{Results and Discussion}
+Federated nodes (ranks)
+
+Rank 1 (@mscluster45): 5 000 samples
+
+Rank 2 (@mscluster46): 3 000 samples
+
+Rank 3 (@mscluster47): 2 000 samples
+
+Rank 4 (@mscluster48): 1 000 samples
+
+Training
+
+Total of 20 global rounds (0…19), each round every rank completed its local update.
+
+Final centroids written to centroids.bin.
+
+2. Evaluation on 2 100 held-out samples
+Parameters
+
+K = 10 clusters
+
+Dimensionality D = 3 072
+
+Overall quality
+
+Inertia (sum of squared distances to nearest centroid): 963 171
+
+Average distance per sample: 21.42
+
+Cluster membership
+
+C0: 117 samples (5.6 %)
+
+C1: 0
+
+C2: 4 (0.2 %)
+
+C3: 1 979 (94.2 %)
+
+C4–C9: 0
+
+3. Key Observations
+Severe imbalance in cluster usage
+
+Only 3 of 10 centroids ended up owning any points; one cluster dominated (94\% of samples).
+
+Six centroids are “empty,” indicating they either never moved toward any data or lost membership entirely.
+
+Cluster collapse / poor separation
+
+The collapse into essentially one large cluster (C3) plus two tiny ones (C0, C2) suggests
+
+suboptimal initialization (e.g. random seed unlucky),
+
+K too large for the data’s intrinsic grouping, or
+
+federated updates overwriting finer local structure.
+
+High inertia and average distance
+
+With most points packed into a single cluster, distances to that centroid inflate both inertia and the mean distance.
 
 \section{Conclusion}
 We have presented a scalable MPI-based clustered federated learning framework, validated on the MSL HPC cluster. By integrating K-means clustering into the aggregation step, our method improves convergence efficiency while maintaining data privacy. Future work will explore adaptive clustering strategies and fault-tolerance enhancements.
